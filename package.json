@@ -1,0 +1,26 @@
+{
+  "name": "open-ota",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted OTA updates for React Native/Expo with telemetry, gradual rollout, signing and an MCP server",
+  "license": "MIT",
+  "packageManager": "pnpm@11.1.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/**\" --filter \"./apps/**\" build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "dev": "pnpm --filter @open-ota/server dev",
+    "db:generate": "pnpm --filter @open-ota/server db:generate",
+    "db:migrate": "pnpm --filter @open-ota/server db:migrate"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
