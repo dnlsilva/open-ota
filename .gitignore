@@ -1,0 +1,31 @@
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.turbo/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+!test/**/*.pem
+
+# local state
+.ota/
+ota.config.local.json
+*.log
+.DS_Store
+
+# native build output
+packages/react-native/android/build/
+packages/react-native/ios/build/
+examples/**/android/
+examples/**/ios/
+examples/**/.expo/
+
+# dashboard build
+apps/dashboard/dist/
+
+# drizzle
+apps/server/drizzle/meta/_journal.json.bak
