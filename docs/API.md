@@ -1,0 +1,163 @@
+# API e protocolo
+
+Base: `/api/v1`. JSON simples — não implementamos o protocolo multipart do Expo (controlamos os dois lados; complexidade sem ganho aqui).
+
+## 1. Autenticação
+
+| Superfície | Mecanismo |
+|---|---|
+| Device API | `x-ota-app-key` (chave **pública** do projeto — identifica, não autoriza admin; conteúdo é protegido por assinatura, não por segredo no client) |
+| Admin API — **tudo** (dashboard, `ota console`, CLI, MCP, CI) ✅ | `Authorization: Bearer ota_...` — token opaco, hash no banco, escopo por org/projeto, `admin`/`read`. `POST /auth/login` (e-mail+senha) emite um token; a SPA guarda em localStorage. Sem cookies: um mecanismo só funciona nos 3 targets e no console local (sem CORS/SameSite). |
+| MCP remoto (`/mcp`) ✅ | **OAuth 2.1 + PKCE + Dynamic Client Registration** — o server é o authorization server: `/.well-known/oauth-protected-resource` · `/oauth/register` · `/oauth/authorize` (tela de login/consent) · `/oauth/token` (+ refresh). Access tokens = `api_tokens` (kind `oauth`, com expiração) — um sistema de tokens só. Fallback: header `Authorization: Bearer ota_...` direto. |
+
+## 2. Device API (protocolo SDK↔servidor)
+
+### 2.1 `GET /update-check`
+
+```
+x-ota-app-key: pk_a1b2...
+?platform=android
+&channel=production
+&runtime=fp_9f8e7d...        # fingerprint do binário
+&current=0193a0...           # release id atual; ausente = rodando embarcado
+&floor=01939f...             # embeddedFloorId gerado no build
+&native=1.4.2                # versionName / CFBundleShortVersionString
+&device=3f7a...              # UUID anônimo
+&failed=0193a1...,0193a2...  # releases que falharam neste device (cap: últimas 10)
+```
+
+**Semântica (target release):**
+
+1. Candidatas: `project+platform+channel` batem, `runtime_version == runtime` (match exato), `id > floor`, `id ∉ failed`, e:
+   - `status = 'active'` e device dentro do rollout (§2.2), **ou**
+   - `id == current` com `status IN ('active','paused')` — sticky: quem já tem, mantém.
+2. `target = max(id)` das candidatas.
+3. Resposta:
+   - `target == current` → `{"action":"none"}`
+   - `target` existe e difere → `{"action":"update", ...}` (serve para upgrade **e** downgrade — ex.: current foi `disabled` e o alvo é a release anterior)
+   - sem candidatas e `current` não roda mais (`disabled`/inexistente) → `{"action":"rollback_to_embedded"}`
+   - sem candidatas mas `current` segue válida → `none`
+4. Efeitos colaterais: upsert do device (throttle 1h) — este request **é** o heartbeat de telemetria.
+
+```json
+{ "action": "update",
+  "mandatory": false,
+  "manifest": {
+    "id": "0193a4c8-...", "projectId": "prj_...", "platform": "android",
+    "channel": "production", "runtimeVersion": "fp_9f8e7d...",
+    "label": 42, "sha256": "b94d27b9...", "size": 4812345,
+    "createdAt": "2026-09-01T12:00:00Z"
+  },
+  "signature": "base64(RSA-SHA256(manifest canônico))",
+  "url": "https://cdn.exemplo.com/bundles/prj_x/0193a4c8.zip"
+}
+```
+
+**`url` fica fora do manifest assinado** de propósito: é só transporte (pode mudar de CDN/domínio sem invalidar assinaturas antigas); integridade vem do `sha256`, autenticidade da assinatura. Um atacante que troque a `url` só consegue entregar um zip que não bate o hash → rejeitado.
+
+### 2.2 Rollout bucketing (determinístico, sem estado)
+
+```
+bucket = int(sha256(deviceId + ":" + releaseId)[0:8]) % 10000   # 0–9999
+oferecida se bucket < rollout_percent * 100
+```
+
+- Salt por release (`releaseId` no hash): um device não cai sempre nos "primeiros 10%" de toda release.
+- **Sticky por construção**: aumentar % só adiciona devices; reduzir não remove quem já instalou (só `disabled` remove). UI recomenda increase-only e avisa ao reduzir.
+- Zero estado no servidor: nada de tabela release×device.
+
+### 2.3 `POST /events`
+
+```json
+{ "device": "3f7a...",
+  "events": [
+    {"type": "download",     "release": "0193a4...", "ts": 1756731600},
+    {"type": "install",      "release": "0193a4...", "ts": 1756731610},
+    {"type": "ready",        "release": "0193a4...", "ts": 1756731620},
+    {"type": "rollback",     "release": "0193a4...", "ts": 1756731699,
+     "meta": {"reason": "crash", "from": "0193a3..."}},
+    {"type": "verify_failed","release": "0193a4...", "ts": 0, "meta": {"stage": "sha256"}}
+  ] }
+```
+
+`202 Accepted`. Batch enviado em launch/background com retry e fila em disco no SDK; servidor incrementa `release_stats` numa transação e insere `rollback_events` quando aplicável. Idempotência estrita não é necessária (contadores operacionais).
+
+### 2.4 `GET /preview/manifest?d=<payload>&s=<sig>`
+
+Valida o token de preview (§4.3) server-side e devolve o mesmo formato do update-check (`manifest + signature + url`). Só releases do projeto do token; `exp` respeitado.
+
+## 3. Admin API (dashboard = CLI = MCP)
+
+| Método/rota | Função |
+|---|---|
+| `POST /auth/signup` · `POST /auth/verify-email` | hosted ✅: cria conta → e-mail de verificação (`sendEmail`: Resend/SMTP) → verifica → cria org no plano free/trial. `OTA_MODE=self`: signup fechado após o primeiro usuário |
+| `POST /auth/login` | e-mail+senha → `{token}` (Bearer; revogável em settings) |
+| `GET/PATCH /orgs/:id` · `GET/POST/DELETE /orgs/:id/members` | org e membros (roles owner/admin/member) |
+| `POST /billing/checkout` · `POST /billing/portal` · `POST /billing/webhook` | hosted ✅: Stripe checkout session, customer portal, webhooks idempotentes (`stripe_events`) |
+| `GET /orgs/:id/usage` | uso vs quotas do plano (projetos, devices ativos/30d, storage) |
+| `POST/GET /mcp` | MCP Streamable HTTP (§1) — mesmas tools do `ota mcp` stdio |
+| `GET/POST /projects` | criar gera par RSA + `app_key` + canais default |
+| `GET /projects/:id` · `GET /projects/:id/public-key` | |
+| `GET /projects/:id/overview` | home: release atual/canal, saúde, adoção, rollbacks recentes |
+| `GET /projects/:id/releases?channel&platform&status&cursor` | |
+| `POST /projects/:id/releases/prepare-upload` | **publish ①**: `{sha256, size, platform, channel, runtime, rollout?, mandatory?, message?, gitCommit?, groupId?}` → `{releaseId, uploadUrl}` (URL assinada do storage adapter, TTL curto) |
+| `PUT <uploadUrl>` | **publish ②**: CLI envia o zip **direto ao storage** — nunca atravessa a API (viável em edge functions) |
+| `POST /releases/:id/confirm` | **publish ③**: server valida via `head()` (existência/tamanho; re-hash oportunista no Node), assina o manifest com o sha256 declarado e ativa a release. Release não confirmada expira e é limpa |
+| `GET /releases/:id` · `GET /releases/:id/metrics` | funil + série diária |
+| `PATCH /releases/:id` | `{status? rolloutPercent? mandatory? message?}` |
+| `POST /releases/:id/promote` | `{channel, rolloutPercent?}` → copia p/ canal destino |
+| `POST /releases/:id/rollback` | açúcar p/ `status=disabled` com entrada no audit (v2) |
+| `POST /releases/:id/preview-link` | `{ttlMinutes=15}` → `{url}` (QR é client-side) |
+| `GET /projects/:id/distribution?platform&window=30` | por release OTA e por versão nativa |
+| `GET/POST/DELETE /projects/:id/tokens` · `/channels` | |
+
+Erros: `{ "error": { "code": "release_not_found", "message": "..." } }`, HTTP semântico. Paginação por cursor (id UUIDv7 já ordena por tempo).
+
+## 4. Segurança e assinatura
+
+### 4.1 Chaves
+
+- **Par RSA-2048 por projeto**, gerado na criação. Privada: só no servidor, AES-256-GCM com `OTA_MASTER_KEY`. Pública: baixada no `ota init` → `ota.config.json` (commitada) → embutida no binário pelo config plugin.
+- Escopo de comprometimento: vazar a chave de um projeto não afeta outros. Rotação (v2): binário embute lista de pubkeys, manifest ganha `keyId`.
+- RSA vs Ed25519 ✅ (validado 2026-09-01): Ed25519 é melhor criptografia, mas exige dependência no Android < API 33; RSA-SHA256 verifica com API nativa em qualquer iOS/Android. Escolha: RSA. Trocar depois é adicionar `alg` ao manifest.
+
+### 4.2 Assinatura de release
+
+- **JSON canônico** do manifest (chaves ordenadas, sem espaços, UTF-8) → `RSA-PKCS#1v1.5 + SHA-256` → assinatura destacada base64. Sem JWT: parser JWT nativo seria dependência extra para envelopar exatamente os mesmos bytes.
+- O `sha256` do manifest vem da CLI (upload direto ao storage — ARCHITECTURE §3.1). Fronteira de confiança: o token admin que autoriza o publish. A assinatura atesta "o servidor deste projeto aprovou uma release com este hash" e protege contra adulteração pós-publish; um publisher malicioso poderia publicar conteúdo malicioso com hash correto de qualquer forma — o risco é idêntico ao multipart. Onde re-verificar é barato (Node self-host), o server confere o hash antes de ativar.
+- Verificação no device (nativa, antes de qualquer uso):
+  1. recompõe o JSON canônico do manifest recebido;
+  2. verifica assinatura com a pubkey embutida — falhou → descarta + `verify_failed`;
+  3. `manifest.projectId`/`platform`/`runtimeVersion` batem com o binário;
+  4. baixa o zip → `sha256(zip) == manifest.sha256` — falhou → descarta + `verify_failed`;
+  5. só então extrai e agenda.
+- Um artefato = um hash (zip inteiro). Hash por asset individual (modelo Expo) só faz sentido com download parcial/diffs — futuro.
+
+**Threat model:**
+
+| Ameaça | Mitigação |
+|---|---|
+| Storage/CDN comprometido, MITM, URL trocada | assinatura + sha256 verificados no device — código não assinado nunca executa |
+| Replay de release antiga (downgrade attack) | servidor decide o target; `floor` impede OTA < binário; manifest amarra `runtimeVersion` |
+| Manifest de outro projeto/app | `projectId` + assinatura por chave do projeto (pubkey de outro app não valida) |
+| Servidor comprometido | game over por definição (ele assina). Reduzir superfície: master key em secret manager, servidor pequeno, audit log |
+| `app_key` conhecida por terceiros | é pública por design; não autoriza nada além de receber conteúdo assinado e publicar contadores. Rate limit por IP/device contra poluição de métricas |
+| Device pede canal `staging` sem ser build de QA | aceito no MVP (bundles de staging não são secretos e são assinados). ⚖️ Se incomodar: flag `restricted` no canal + chave por canal |
+
+### 4.3 Token de preview (deep link / QR)
+
+Payload canônico assinado com a **mesma chave do projeto** (o device já tem a pubkey):
+
+```json
+{"purpose":"preview","projectId":"prj_...","releaseId":"0193a4...","exp":1756732500}
+```
+
+`myapp://ota/preview?d=<b64url(payload)>&s=<b64url(assinatura)>`
+
+Validação no SDK: assinatura ✓ → `purpose == "preview"` (domain separation: um token de preview nunca é confundível com um manifest) → `projectId` é o meu → `exp` no futuro (tolerância ±5 min p/ clock skew do device; o server valida `exp` sem tolerância) → busca manifest via `/preview/manifest` (servidor revalida: expiração curta funciona como revogação; release precisa existir e pertencer ao projeto) → verificação normal de manifest+hash → aplica **pinned**.
+
+Propriedades: conhecer `releaseId`/hash **não basta** — precisa de assinatura do servidor; token expira (15 min default); vinculado a projeto e release específicos; replay dentro da janela é aceito (feature de teste — o conteúdo instalável é o mesmo que o rollout entregaria, autenticado identicamente; não há escalação de privilégio); token não dá acesso à Admin API (endpoint de preview só devolve manifest). Pinned = update-check suspenso até `exitPreview()` ou reinstalação.
+
+### 4.4 Transporte e abuso
+
+TLS obrigatório (assinatura protege conteúdo, TLS protege metadados/privacidade). Rate limits: `/update-check` e `/events` por device+IP; `/auth/login` com backoff. Uploads limitados (ex.: 200 MB) e só por token `admin` do projeto.
