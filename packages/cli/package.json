@@ -1,0 +1,36 @@
+{
+  "name": "@open-ota/cli",
+  "version": "0.1.0",
+  "description": "Open OTA command line — publish, promote, roll out, roll back, and an embedded MCP server",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "ota": "./bin/ota.js"
+  },
+  "files": ["bin", "src", "README.md"],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@open-ota/shared": "workspace:*",
+    "commander": "^12.1.0",
+    "kleur": "^4.1.5",
+    "prompts": "^2.4.2",
+    "qrcode-terminal": "^0.12.0",
+    "yauzl-promise": "^4.0.0",
+    "yazl": "^3.3.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/prompts": "^2.4.9",
+    "@types/qrcode-terminal": "^0.12.2",
+    "@types/yazl": "^2.4.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
