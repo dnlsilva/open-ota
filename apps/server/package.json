@@ -1,0 +1,35 @@
+{
+  "name": "@open-ota/server",
+  "version": "0.1.0",
+  "description": "Open OTA server — Device API, Admin API, MCP endpoint. Runs on Node, Deno (Supabase Edge) and Cloudflare Workers",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/entry/node.ts",
+    "start": "node dist/entry/node.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.717.0",
+    "@aws-sdk/s3-request-presigner": "^3.717.0",
+    "@hono/node-server": "^1.13.7",
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@open-ota/shared": "workspace:*",
+    "drizzle-orm": "^0.38.3",
+    "hono": "^4.6.14",
+    "postgres": "^3.4.5",
+    "stripe": "^17.5.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "drizzle-kit": "^0.30.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
