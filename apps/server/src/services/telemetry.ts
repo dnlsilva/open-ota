@@ -72,6 +72,78 @@ const COUNTER_COLUMN = {
   rollback: "rollbacks",
 } as const satisfies Record<string, keyof typeof releaseStats.$inferInsert>;
 
+export interface CounterRow {
+  releaseId: string;
+  day: string;
+  downloads: number;
+  installs: number;
+  ready: number;
+  failed: number;
+  rollbacks: number;
+}
+
+export interface RollbackRecord {
+  releaseId: string;
+  fromReleaseId: string | null;
+  reason: string;
+  meta: Record<string, unknown>;
+}
+
+/**
+ * Fold a batch into per-release daily increments, dropping anything that does
+ * not belong to this project — an app key is public, so the release ids in a
+ * batch are untrusted input.
+ */
+export function foldEvents(
+  request: EventsRequest,
+  ownedIds: ReadonlySet<string>,
+  day: string,
+): { counters: CounterRow[]; rollbacks: RollbackRecord[] } {
+  const buckets = new Map<string, Record<string, number>>();
+  const rollbacks: RollbackRecord[] = [];
+
+  for (const event of request.events) {
+    if (!ownedIds.has(event.release)) continue;
+
+    const column = COUNTER_COLUMN[event.type as keyof typeof COUNTER_COLUMN];
+    if (!column) continue;
+
+    const bucket = buckets.get(event.release) ?? {};
+    bucket[column] = (bucket[column] ?? 0) + 1;
+    // A rollback is also a failed install of that release; counting it in both
+    // places is what makes the funnel add up on the dashboard.
+    if (event.type === "rollback") bucket.failed = (bucket.failed ?? 0) + 1;
+    buckets.set(event.release, bucket);
+
+    if (event.type === "rollback") {
+      rollbacks.push({
+        releaseId: event.release,
+        fromReleaseId: event.meta?.from ?? null,
+        reason: event.meta?.reason ?? "crash",
+        meta: {
+          platform: request.platform,
+          nativeVersion: request.native,
+          message: event.meta?.message,
+          stage: event.meta?.stage,
+        },
+      });
+    }
+  }
+
+  return {
+    counters: [...buckets.entries()].map(([releaseId, counts]) => ({
+      releaseId,
+      day,
+      downloads: counts.downloads ?? 0,
+      installs: counts.installs ?? 0,
+      ready: counts.ready ?? 0,
+      failed: counts.failed ?? 0,
+      rollbacks: counts.rollbacks ?? 0,
+    })),
+    rollbacks,
+  };
+}
+
 /**
  * Fold a batch into per-release, per-day increments and apply them in one
  * statement. Counters are at-least-once: a retried batch may double count a
@@ -93,47 +165,8 @@ export async function recordEvents(
     .where(and(eq(releases.projectId, projectId), sql`${releases.id} = any(${releaseIds})`));
   const ownedIds = new Set(owned.map((r) => r.id));
 
-  const buckets = new Map<string, Record<string, number>>();
-  const rollbacks: Array<{ releaseId: string; fromReleaseId: string | null; reason: string; meta: unknown }> = [];
-
-  for (const event of request.events) {
-    if (!ownedIds.has(event.release)) continue;
-
-    const column = COUNTER_COLUMN[event.type as keyof typeof COUNTER_COLUMN];
-    if (!column) continue;
-
-    const bucket = buckets.get(event.release) ?? {};
-    bucket[column] = (bucket[column] ?? 0) + 1;
-    // A crash-loop rollback is also a failed install of that release.
-    if (event.type === "rollback") bucket.failed = (bucket.failed ?? 0) + 1;
-    buckets.set(event.release, bucket);
-
-    if (event.type === "rollback") {
-      rollbacks.push({
-        releaseId: event.release,
-        fromReleaseId: event.meta?.from ?? null,
-        reason: event.meta?.reason ?? "crash",
-        meta: {
-          platform: request.platform,
-          nativeVersion: request.native,
-          message: event.meta?.message,
-          stage: event.meta?.stage,
-        },
-      });
-    }
-  }
-
-  if (buckets.size === 0) return { applied: 0 };
-
-  const rows = [...buckets.entries()].map(([releaseId, counts]) => ({
-    releaseId,
-    day,
-    downloads: counts.downloads ?? 0,
-    installs: counts.installs ?? 0,
-    ready: counts.ready ?? 0,
-    failed: counts.failed ?? 0,
-    rollbacks: counts.rollbacks ?? 0,
-  }));
+  const { counters: rows, rollbacks } = foldEvents(request, ownedIds, day);
+  if (rows.length === 0) return { applied: 0 };
 
   await ctx.db
     .insert(releaseStats)
