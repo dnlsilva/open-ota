@@ -17,6 +17,7 @@ export function createSupabaseStorage(config: AppConfig): StorageAdapter {
 
   return {
     name: "supabase",
+    readsAreCheap: false,
 
     async createSignedUploadUrl(objectKey, opts) {
       const res = await fetch(`${base}/storage/v1/object/upload/sign/${bucket}/${objectKey}`, {

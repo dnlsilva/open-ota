@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/entry/node.ts",
     "start": "node dist/entry/node.js",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "esbuild src/entry/node.ts --bundle --platform=node --format=esm --outfile=dist/entry/node.js --banner:js='import{createRequire as __cr}from\"node:module\";const require=__cr(import.meta.url);'",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
@@ -26,8 +26,10 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/node": "^22.10.2",
     "drizzle-kit": "^0.30.1",
+    "esbuild": "^0.25.12",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

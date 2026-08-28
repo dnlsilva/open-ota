@@ -14,7 +14,7 @@ import type {
   RollbackEvent,
   VersionDistributionRow,
 } from "@open-ota/shared";
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { channels, devices, releaseStats, releases, rollbackEvents } from "../db/schema.js";
 import type { AppContext } from "./context.js";
 import { getRelease, requireProject } from "./releases.js";
@@ -95,61 +95,70 @@ export async function getDistribution(
   totalDevices: number;
 }> {
   const since = windowStart(ctx, opts.windowDays ?? DEFAULT_WINDOW_DAYS);
-  const platformFilter = opts.platform ? sql` and d.platform = ${opts.platform}` : sql``;
+  // Built with the query builder rather than raw SQL: db.execute() hands back
+  // a different shape on each driver (rows array vs result object), and this
+  // server has to run on more than one.
+  const scope = opts.platform
+    ? and(eq(devices.projectId, projectId), gte(devices.lastSeenAt, since), eq(devices.platform, opts.platform))
+    : and(eq(devices.projectId, projectId), gte(devices.lastSeenAt, since));
 
-  const releaseRows = await ctx.db.execute<{
-    release_id: string | null;
-    label: number | null;
-    platform: string;
-    devices: number;
-    installs: number;
-    rollbacks: number;
-  }>(sql`
-    select
-      d.current_release_id as release_id,
-      r.label              as label,
-      d.platform           as platform,
-      count(*)::int        as devices,
-      coalesce(s.installs, 0)::int  as installs,
-      coalesce(s.rollbacks, 0)::int as rollbacks
-    from devices d
-    left join releases r on r.id = d.current_release_id
-    left join (
-      select release_id, sum(installs) as installs, sum(rollbacks) as rollbacks
-      from release_stats group by release_id
-    ) s on s.release_id = d.current_release_id
-    where d.project_id = ${projectId} and d.last_seen_at >= ${since}${platformFilter}
-    group by d.current_release_id, r.label, d.platform, s.installs, s.rollbacks
-    order by devices desc
-  `);
+  const releaseRows = await ctx.db
+    .select({
+      releaseId: devices.currentReleaseId,
+      label: releases.label,
+      platform: devices.platform,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(devices)
+    .leftJoin(releases, eq(releases.id, devices.currentReleaseId))
+    .where(scope)
+    .groupBy(devices.currentReleaseId, releases.label, devices.platform)
+    .orderBy(desc(sql`count(*)`));
 
-  const nativeRows = await ctx.db.execute<{ native_version: string | null; platform: string; devices: number }>(sql`
-    select d.native_version, d.platform, count(*)::int as devices
-    from devices d
-    where d.project_id = ${projectId} and d.last_seen_at >= ${since}${platformFilter}
-    group by d.native_version, d.platform
-    order by devices desc
-  `);
+  const nativeRows = await ctx.db
+    .select({
+      nativeVersion: devices.nativeVersion,
+      platform: devices.platform,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(devices)
+    .where(scope)
+    .groupBy(devices.nativeVersion, devices.platform)
+    .orderBy(desc(sql`count(*)`));
 
-  const total = releaseRows.reduce((sum, row) => sum + Number(row.devices), 0);
+  const knownIds = releaseRows.map((r) => r.releaseId).filter((id): id is string => id !== null);
+  const statRows = knownIds.length
+    ? await ctx.db
+        .select({
+          releaseId: releaseStats.releaseId,
+          installs: sql<number>`coalesce(sum(${releaseStats.installs}), 0)::int`,
+          rollbacks: sql<number>`coalesce(sum(${releaseStats.rollbacks}), 0)::int`,
+        })
+        .from(releaseStats)
+        .where(inArray(releaseStats.releaseId, knownIds))
+        .groupBy(releaseStats.releaseId)
+    : [];
+  const stats = new Map(statRows.map((s) => [s.releaseId, s]));
+
+  const total = releaseRows.reduce((sum, row) => sum + Number(row.count), 0);
   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 1000) / 10 : 0);
 
   return {
     totalDevices: total,
     releases: releaseRows.map((row) => ({
-      releaseId: row.release_id,
-      label: row.label === null ? null : Number(row.label),
+      releaseId: row.releaseId,
+      label: row.label ?? null,
       platform: row.platform as Platform,
-      devices: Number(row.devices),
-      percentOfBase: pct(Number(row.devices)),
-      installs: Number(row.installs),
-      rollbacks: Number(row.rollbacks),
+      devices: Number(row.count),
+      percentOfBase: pct(Number(row.count)),
+      installs: Number(stats.get(row.releaseId ?? "")?.installs ?? 0),
+      rollbacks: Number(stats.get(row.releaseId ?? "")?.rollbacks ?? 0),
     })),
     nativeVersions: nativeRows.map((row) => ({
-      nativeVersion: row.native_version ?? "unknown",
+      nativeVersion: row.nativeVersion ?? "unknown",
       platform: row.platform as Platform,
-      devices: Number(row.devices),
-      percentOfBase: pct(Number(row.devices)),
+      devices: Number(row.count),
+      percentOfBase: pct(Number(row.count)),
     })),
   };
 }

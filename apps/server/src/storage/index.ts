@@ -15,6 +15,13 @@ export interface UploadTarget {
 
 export interface StorageAdapter {
   readonly name: string;
+  /**
+   * True when reading an object back costs nothing meaningful (local disk,
+   * in-process). Those drivers get the publisher's digest re-verified on
+   * confirm; over the network the signed manifest already carries the digest
+   * the device checks, so paying to download every bundle twice buys nothing.
+   */
+  readonly readsAreCheap: boolean;
   createSignedUploadUrl(key: string, opts: { contentType: string; size: number }): Promise<UploadTarget>;
   /** URL handed to devices; the CDN origin when one is configured. */
   publicUrl(key: string): string;
