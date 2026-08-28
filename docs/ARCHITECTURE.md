@@ -70,8 +70,8 @@ Referência de mecanismo self-hosted (verificado em hot-updater.dev, 2026):
 | Área | Escolha | Alternativas | Por quê |
 |---|---|---|---|
 | Backend ✅ | **Node + TypeScript + Hono** | Fastify (mais maduro), NestJS (pesado), Go (perf) | TS compartilha tipos com SDK/CLI/dashboard no monorepo. Hono roda **idêntico em Node, Deno (Supabase Edge Functions) e Cloudflare Workers** — é o que viabiliza provider-agnóstico com um codebase só. |
-| ORM ✅ | **Drizzle** | Prisma (DX ótima, runtime maior) | SQL explícito (as queries de métricas importam), leve, roda em edge — e fala os dois dialetos necessários: **Postgres** (Supabase/self-host) e **SQLite** (Cloudflare D1). |
-| Banco | **Postgres** (Supabase / self-host) ou **SQLite/D1** (Cloudflare), via db adapter | — | Metadados + contadores + devices. Postgres aguenta ~1M devices (math na §6); D1 cobre a mesma ordem no caminho Cloudflare. |
+| ORM ✅ | **Drizzle** | Prisma (DX ótima, runtime maior) | SQL explícito (as queries de métricas importam), leve, roda em edge. |
+| Banco | **Postgres nos três targets** — Supabase, self-host, e Cloudflare via **Hyperdrive** | D1 (SQLite) no Cloudflare | ⚠️ **Mudança na implementação (28/08)**: o design previa dialeto duplo pg+SQLite. Ao construir, ficou claro que manter dois dialetos (~14 tabelas, agregações com window function, matriz de teste ×2) custa caro para zero ganho de usuário hoje — Hyperdrive já dá Postgres no Worker. Um dialeto só. A camada de repositório é a única que fala Drizzle, então adicionar D1 depois não toca os serviços. |
 | Cache/fila | **nenhum** | Redis | Upsert no banco aguenta a carga de telemetria projetada. Redis entra só como buffer de contadores se ingest passar de ~500 eventos/s. |
 | Storage | **Storage adapter**: S3-compatível (R2 / S3 / MinIO) + **Supabase Storage** | — | Bundles imutáveis atrás de CDN. Interface mínima: `putSignedUrl / publicUrl / head`. R2 = zero egress. |
 | CDN | o do provider (Cloudflare, CDN do Supabase Storage) | CloudFront | `cache-control: immutable` — release nunca muda (novo conteúdo = nova release). |
@@ -95,23 +95,26 @@ Device API (tráfego alto, latência importa) e Admin API (tráfego baixo) vivem
 
 ### Provider-agnóstico: um codebase, três targets
 
-A lógica (routers, assinatura, rollout, telemetria) é única; só a borda varia. Duas interfaces pequenas isolam o provider — **nada de plugin system genérico** (o do hot-updater existe porque cada provider carrega a própria edge function; nós temos um app só):
+A lógica (routers, assinatura, rollout, telemetria) é única; só a borda varia — **nada de plugin system genérico** (o do hot-updater existe porque cada provider carrega a própria edge function; nós temos um app só). Na prática sobrou **uma** costura, o storage; o banco é Postgres em todos os targets:
 
 ```ts
-// packages/shared — as duas únicas costuras
-interface DbAdapter      // Drizzle: dialeto pg (Supabase/self-host) | sqlite (D1)
+// apps/server/src/storage/index.ts
 interface StorageAdapter {
-  createSignedUploadUrl(key: string): Promise<string>
+  readonly name: string
+  readonly readsAreCheap: boolean   // re-verificar o digest só onde custa nada
+  createSignedUploadUrl(key, opts): Promise<UploadTarget>
   publicUrl(key: string): string
   head(key: string): Promise<{ size: number } | null>
+  get?(key): Promise<Uint8Array | null>; put?(...); delete(key)
 }
 ```
 
 | Target | Runtime | Banco | Storage | Provisionamento |
 |---|---|---|---|---|
 | **Supabase** | Edge Function (Deno) | Supabase Postgres | Supabase Storage | `ota init --provider supabase` — um comando: migra schema, deploya function, cria bucket, seta secrets (via Supabase CLI; agentes podem usar o MCP oficial deles) |
-| **Cloudflare** | Workers | D1 (ou Postgres via Hyperdrive) | R2 | `ota init --provider cloudflare` (wrangler) |
+| **Cloudflare** | Workers | Postgres via Hyperdrive | R2 | `ota init --provider cloudflare` (wrangler) |
 | **Self-host** | Node (Docker) | Postgres | MinIO / S3 / R2 | `docker compose up` (§7) |
+| **Hosted (SaaS)** | Node ou Workers (`OTA_MODE=hosted`) | Postgres | R2 / S3 | multi-tenant, Stripe, MCP remoto |
 
 Dashboard é estático em todos: no self-host o server serve; nos targets edge, `ota console` abre a mesma SPA local apontando para a Admin API — e deploy estático (Cloudflare Pages etc.) fica disponível para quem quiser URL fixa.
 
@@ -384,7 +387,7 @@ Gatilhos de evolução (não antes):
 
 ### Cloudflare
 
-`ota init --provider cloudflare`: wrangler deploya o Worker, cria D1 (migrations no dialeto SQLite) e bucket R2, seta secrets. Postgres via Hyperdrive como alternativa ao D1 p/ bases maiores.
+`ota init --provider cloudflare`: wrangler deploya o Worker, cria o bucket R2, configura o Hyperdrive apontando para o Postgres e seta secrets. Mesmo schema e mesmas migrations dos outros targets.
 
 ### Hosted — o SaaS do Daniel ✅
 

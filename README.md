@@ -16,7 +16,7 @@ Open OTA pega o mecanismo do hot-updater + o protocolo/conceitos do Expo Updates
 
 ## Princípios
 
-1. **Provider-agnóstico, Supabase first-class** — um codebase (Hono) com três deploy targets: **Supabase** (Edge Function + Postgres + Storage, provisionado em um comando via CLI/MCP deles), **Cloudflare** (Workers + D1/R2) e **Docker self-host** (`docker compose up`). Duas costuras isolam o provider: db adapter (dialetos pg/sqlite) e storage adapter. O mesmo codebase roda o **serviço hospedado (SaaS)** com `OTA_MODE=hosted`: multi-tenant, signup self-serve, Stripe.
+1. **Provider-agnóstico, Supabase first-class** — um codebase (Hono) com três deploy targets: **Supabase** (Edge Function + Postgres + Storage, provisionado em um comando via CLI/MCP deles), **Cloudflare** (Workers + D1/R2) e **Docker self-host** (`docker compose up`). Postgres nos três (Cloudflare via Hyperdrive); a única costura que varia de verdade é o storage adapter. O mesmo codebase roda o **serviço hospedado (SaaS)** com `OTA_MODE=hosted`: multi-tenant, signup self-serve, Stripe.
 2. **Uma API para tudo** — dashboard, CLI e MCP server são clientes finos da mesma Admin API. Zero lógica duplicada entre providers ou clientes.
 3. **Seguro por padrão** — toda release é assinada (RSA-2048) e verificada no device antes de executar. CDN/storage comprometido não injeta código.
 4. **Telemetria barata** — contadores agregados + 1 linha por device. Nunca 1 linha por evento. Funciona igual com 10 mil ou 1 milhão de instalações.
