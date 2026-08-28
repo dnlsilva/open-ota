@@ -8,7 +8,7 @@
  */
 
 import { DEVICE_TOUCH_THROTTLE_MS, uuidv7, type EventsRequest, type Platform } from "@open-ota/shared";
-import { and, eq, isNull, or, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, or, ne, sql } from "drizzle-orm";
 import { devices, releaseStats, releases, rollbackEvents } from "../db/schema.js";
 import type { AppContext } from "./context.js";
 
@@ -159,10 +159,12 @@ export async function recordEvents(
   // Only count events for releases that belong to this project — an app key is
   // public, so the release ids in a batch are not trusted input.
   const releaseIds = [...new Set(request.events.map((e) => e.release))];
+  if (releaseIds.length === 0) return { applied: 0 };
+
   const owned = await ctx.db
     .select({ id: releases.id })
     .from(releases)
-    .where(and(eq(releases.projectId, projectId), sql`${releases.id} = any(${releaseIds})`));
+    .where(and(eq(releases.projectId, projectId), inArray(releases.id, releaseIds)));
   const ownedIds = new Set(owned.map((r) => r.id));
 
   const { counters: rows, rollbacks } = foldEvents(request, ownedIds, day);
@@ -208,5 +210,3 @@ export async function pruneDevices(ctx: AppContext, olderThanDays = 180): Promis
     .returning({ id: devices.id });
   return deleted.length;
 }
-
-export { isNull };

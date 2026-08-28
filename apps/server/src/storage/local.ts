@@ -20,6 +20,7 @@ export function createLocalStorage(config: AppConfig): StorageAdapter {
 
   return {
     name: "local",
+    readsAreCheap: true,
 
     async createSignedUploadUrl(key) {
       return {

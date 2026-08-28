@@ -27,6 +27,7 @@ export function createS3Storage(config: AppConfig): StorageAdapter {
 
   return {
     name: "s3",
+    readsAreCheap: false,
 
     async createSignedUploadUrl(key, opts): Promise<UploadTarget> {
       const url = await getSignedUrl(
