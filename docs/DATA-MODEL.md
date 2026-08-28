@@ -25,7 +25,7 @@ Multi-tenant ✅ (hosted): tudo pendura em `orgs`. No self-host (`OTA_MODE=self`
 
 ## 2. Tabelas
 
-DDL abaixo em sabor Postgres (canônico). O schema é declarado uma vez em Drizzle e materializado em **dois dialetos**: Postgres (Supabase/self-host) e SQLite/D1 (Cloudflare) — `uuid`→`text`, `timestamptz`→epoch ms, `text[]`→JSON; `INSERT ... ON CONFLICT DO UPDATE` (o coração dos contadores) existe nos dois.
+DDL em Postgres, um dialeto só, igual nos três targets (Cloudflare usa Hyperdrive). Declarado uma vez em Drizzle (`apps/server/src/db/schema.ts`) e materializado em migrations versionadas — a suíte de integração roda essas mesmas migrations num Postgres real embarcado (PGlite), então o SQL testado é o SQL que sobe.
 
 ```sql
 users (

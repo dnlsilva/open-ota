@@ -5,7 +5,7 @@
 ## 1. Escopo v1 (completo)
 
 - **Server** (Hono, um codebase): Device API (update-check com target-release + rollout bucketing, events, preview), Admin API completa, assinatura RSA por projeto, telemetria por contadores, auth Bearer-only (login emite token opaco; label sequence em transação; migrations automáticas no boot).
-- **Três deploy targets**: Supabase (Edge Function + Postgres + Storage, provisionado em um comando), Cloudflare (Workers + D1/R2), Docker self-host (Node + Postgres + MinIO/S3). Adapters de db (dialetos pg/sqlite) e storage.
+- **Três deploy targets**: Supabase (Edge Function + Postgres + Storage, provisionado em um comando), Cloudflare (Workers + Hyperdrive/R2), Docker self-host (Node + Postgres + MinIO/S3), mais o modo hosted. Postgres em todos; a costura que varia é o storage adapter.
 - **SDK** React Native/Expo (Expo Modules API), **Old + New Architecture** (RN 0.73+/Expo SDK 50+): boot path nas variantes bridge e bridgeless, slots A/B, download/verify (assinatura + sha256), rollback automático (1 crash), notifyAppReady, eventos, deviceId, canais em runtime, deep link de preview pinned. Exige dev build (Expo Go não suporta módulo nativo — nota de docs).
 - **Autoconfig de setup**: Expo config plugin **e** codemods para bare RN (paridade), deep links inclusos; `ota doctor` valida ambos.
 - **CLI** `ota`: login, init (com `--provider`), fingerprint, publish (upload direto ao storage), releases, promote, rollout, pause/resume/disable, rollback, metrics, preview (QR no terminal), console (dashboard local), doctor, mcp.
@@ -33,7 +33,7 @@ Dependência e risco mandam: o que pode inviabilizar (SDK nativo) é atacado pri
 | E6 | Operação: promote, pause/resume/disable, rollback remoto, rollout, mandatory (server+CLI+dashboard) | E2–E5 |
 | E7 | MCP: tools em shared + transporte stdio (`ota mcp`) + rota `/mcp` (Streamable HTTP) + OAuth 2.1/PKCE/DCR | E4, E6 |
 | E8 | Preview: token assinado, deep link handler pinned, QR (dashboard + CLI), deep link autoconfig | E3, E6 |
-| E9 | Targets Supabase (Edge Function, `init --provider supabase`) e Cloudflare (Workers, D1 dialect, R2) + `ota console` | E2 (adapters prontos) |
+| E9 | Targets Supabase (Edge Function, `init --provider supabase`) e Cloudflare (Workers, Hyperdrive, R2) + `ota console` | E2 (adapters prontos) |
 | E10 | Modo hosted: orgs/membership no fluxo (schema já nasce multi-tenant em E2), signup + verificação de e-mail, Stripe (checkout/portal/webhooks/trial), quotas + usage, telas de org/billing no dashboard | E2, E5, E7 |
 | E11 | Matriz de validação (§4) no app exemplo, nos três targets + fluxo hosted (signup → checkout → publish → MCP remoto via OAuth) | tudo |
 
@@ -47,7 +47,7 @@ Dependência e risco mandam: o que pode inviabilizar (SDK nativo) é atacado pri
 | **Detecção de crash** (falso positivo: usuário mata o app antes do ready) | rollback indevido | `notifyAppReady` no primeiro frame (janela mínima); flag só conta como falha se o processo morreu sem `ready` |
 | **Coexistência com expo-updates** | dois donos do bundle | plugin/codemod falha com instrução de remoção; `ota doctor` confere |
 | **Fingerprint drift** | update recusado ou aceito errado | `fingerprint.json` commitado + `ota fingerprint --check` no CI |
-| **Dialeto duplo (pg + sqlite/D1)** | sutilezas de tipos/upsert entre targets | schema único em Drizzle; suíte de testes dos repositórios roda contra os dois dialetos no CI |
+| ~~Dialeto duplo (pg + sqlite/D1)~~ **eliminado** | seria matriz de teste ×2 sem ganho de usuário | decisão de implementação (28/08): Postgres nos três targets, Cloudflare via Hyperdrive. A camada de repositório continua sendo a única que fala Drizzle, então D1 pode entrar depois sem tocar os serviços |
 | **Limites de edge function** (tamanho de request, CPU) | publish/telemetria falham no Supabase/CF | upload direto ao storage (nunca via função); handlers curtos; batch de eventos pequeno |
 | Server é ponto único de assinatura | comprometimento = updates maliciosos | master key só via secrets do provider; superfície mínima; rate limit |
 | **OAuth server próprio** (authorize/token/DCR) | superfície de segurança nova; bug = tokens indevidos | seguir MCP auth spec à risca (PKCE obrigatório, redirect URI exato, tokens curtos + refresh); testes de fluxo negativos; sem client secrets implícitos |
