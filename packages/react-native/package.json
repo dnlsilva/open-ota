@@ -16,17 +16,20 @@
     "test": "vitest run"
   },
   "peerDependencies": {
+    "@expo/config-plugins": ">=8",
     "expo": "*",
     "react": "*",
     "react-native": "*"
   },
   "peerDependenciesMeta": {
-    "expo": { "optional": true }
+    "expo": { "optional": true },
+    "@expo/config-plugins": { "optional": true }
   },
   "dependencies": {
     "@open-ota/shared": "workspace:*"
   },
   "devDependencies": {
+    "@expo/config-plugins": "^9.0.12",
     "@types/node": "^22.10.2",
     "@types/react": "^18.3.12",
     "expo-modules-core": "^2.1.1",
