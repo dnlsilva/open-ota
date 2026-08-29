@@ -35,7 +35,7 @@ x-ota-app-key: pk_a1b2...
 3. Resposta:
    - `target == current` → `{"action":"none"}`
    - `target` existe e difere → `{"action":"update", ...}` (serve para upgrade **e** downgrade — ex.: current foi `disabled` e o alvo é a release anterior)
-   - sem candidatas e `current` não roda mais (`disabled`/inexistente) → `{"action":"rollback_to_embedded"}`
+   - sem candidatas e `current` não roda mais (`disabled`/inexistente) → `{"action":"rollBackToEmbedded"}`
    - sem candidatas mas `current` segue válida → `none`
 4. Efeitos colaterais: upsert do device (throttle 1h) — este request **é** o heartbeat de telemetria.
 
@@ -76,7 +76,7 @@ oferecida se bucket < rollout_percent * 100
     {"type": "ready",        "release": "0193a4...", "ts": 1756731620},
     {"type": "rollback",     "release": "0193a4...", "ts": 1756731699,
      "meta": {"reason": "crash", "from": "0193a3..."}},
-    {"type": "verify_failed","release": "0193a4...", "ts": 0, "meta": {"stage": "sha256"}}
+    {"type": "verifyFailed",  "release": "0193a4...", "ts": 0, "meta": {"stage": "sha256"}}
   ] }
 ```
 
@@ -90,6 +90,10 @@ Valida o token de preview (§4.3) server-side e devolve o mesmo formato do updat
 
 | Método/rota | Função |
 |---|---|
+| `GET /meta` · `GET /config` (alias) | **público**: `{mode, hosted, billingEnabled, signupEnabled, version}` — o dashboard usa para esconder signup/billing num self-host |
+| `GET /plans` | **público**: catálogo de planos (preço não é segredo); alimenta a tela de billing |
+| `GET /healthz` | liveness: modo, driver de storage, billing ligado |
+| `PUT/GET /storage/:key` | **só no driver `local`** (que não assina URL): passthrough de upload/download. Recusa release que não esteja `pending`, valida o formato da key e aplica o teto de tamanho |
 | `POST /auth/signup` · `POST /auth/verify-email` | hosted ✅: cria conta → e-mail de verificação (`sendEmail`: Resend/SMTP) → verifica → cria org no plano free/trial. `OTA_MODE=self`: signup fechado após o primeiro usuário |
 | `POST /auth/login` | e-mail+senha → `{token}` (Bearer; revogável em settings) |
 | `GET/PATCH /orgs/:id` · `GET/POST/DELETE /orgs/:id/members` | org e membros (roles owner/admin/member) |
@@ -161,3 +165,21 @@ Propriedades: conhecer `releaseId`/hash **não basta** — precisa de assinatura
 ### 4.4 Transporte e abuso
 
 TLS obrigatório (assinatura protege conteúdo, TLS protege metadados/privacidade). Rate limits: `/update-check` e `/events` por device+IP; `/auth/login` com backoff. Uploads limitados (ex.: 200 MB) e só por token `admin` do projeto.
+
+---
+
+## 5. Estado da implementação
+
+Esta seção reflete o código, não o plano. Onde houver divergência com as seções acima, o código manda.
+
+| Área | Estado |
+|---|---|
+| Device API (`/update-check`, `/events`, `/preview/manifest`) | implementado, com a decisão de target extraída como função pura (`decideTarget`) e coberta por 17 testes |
+| Admin API | implementado (projects, channels, releases, prepare/confirm, patch, promote, rollback, preview-link, metrics, distribution, rollbacks, tokens) |
+| Assinatura | RSA-2048/SHA-256 sobre JSON canônico, via Web Crypto — mesmo código em Node, Deno e Workers. Vetores em `packages/shared/test/vectors/` mantêm Kotlin e Swift em sincronia |
+| Telemetria | upsert de device com throttle de 1h + contadores diários; dobra de eventos como função pura testada |
+| Auth | Bearer-only; PBKDF2-HMAC-SHA256 a 600k iterações (argon2 exigiria módulo nativo, que não roda em edge). O formato armazenado carrega os parâmetros, então subir o custo é migração e não reescrita |
+| Storage | S3-compatível, Supabase Storage e disco local. Adapter declara `readsAreCheap`; onde é barato, o server reconfere o digest no confirm |
+| Banco | Postgres, um dialeto. Migrations versionadas; a suíte de integração roda **essas mesmas migrations** num Postgres real embarcado (PGlite), sem Docker |
+
+Testes: 156 no total (39 shared · 43 SDK · 34 CLI · 40 server). O que **não** foi validado ainda é o que só hardware resolve — boot path nativo e resolução de assets offline em iOS/Android reais, nas duas arquiteturas do React Native.

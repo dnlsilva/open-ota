@@ -21,9 +21,3 @@ export interface Actor {
   projectId: string | null;
 }
 
-export function assertScope(actor: Actor, scope: "admin" | "read"): void {
-  if (scope === "read") return;
-  if (!actor.scopes.includes("admin")) {
-    throw Object.assign(new Error("This token is read-only"), { status: 403, code: "forbidden" });
-  }
-}
