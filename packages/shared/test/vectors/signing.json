@@ -1,0 +1,40 @@
+{
+  "note": "Test-only key pair. Native SDKs verify these to prove their crypto matches.",
+  "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnNsFvE3Ry8gNDHIasLbQ\nRAOin6PYrqSlFJskG2ASlK32Qxk241pGdcjRX1f89Nw8MA9+cvEAhd4AvFfiY0jv\n3Qx3sYDLWvRllD5hSPcCfP0oqIA+PCt4o9qzfbAv4FtFksVuplbtdBLUqlzYzsd0\nj4i3bTz8Ovc1ZnlqzTCqfZX3opPC6n3/yOZISbhHNpuRb+ngIpbpF4mjmENGPmEK\nkJ6FrkBGf+GDfE5gF0nbOcNusGf5p5oBoMU8AGXLfhIEj2K2MGF0oV1t+0ySeEd+\nkZt2R0MWzLXi7LEiFIW0UC3Fc4W/T4DX7Gf0niCpAAlF6fGPuq5R8KN6VCL5kZeD\niQIDAQAB\n-----END PUBLIC KEY-----\n",
+  "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCc2wW8TdHLyA0M\nchqwttBEA6Kfo9iupKUUmyQbYBKUrfZDGTbjWkZ1yNFfV/z03DwwD35y8QCF3gC8\nV+JjSO/dDHexgMta9GWUPmFI9wJ8/SiogD48K3ij2rN9sC/gW0WSxW6mVu10EtSq\nXNjOx3SPiLdtPPw69zVmeWrNMKp9lfeik8Lqff/I5khJuEc2m5Fv6eAilukXiaOY\nQ0Y+YQqQnoWuQEZ/4YN8TmAXSds5w26wZ/mnmgGgxTwAZct+EgSPYrYwYXShXW37\nTJJ4R36Rm3ZHQxbMteLssSIUhbRQLcVzhb9PgNfsZ/SeIKkACUXp8Y+6rlHwo3pU\nIvmRl4OJAgMBAAECggEAAKVuWp4/dQV3+EsoDP5T0VPqgZndNKr8+x7AgVRd/zrQ\nPuqFrV4b2DRhmHD2W9Pkc5Y8wSB5DhQiEKSUDDCqvFBm1dZgABntqTSwlepemkE4\nv6j3mKvdLV+jSatGJzh5CufBUvIcvFOviJwlUITF2CmKB+suZtfJ4ogxhnLi4O2R\nluOKjtY1X82NirfDN/jEcUvEe49A54ioC/eiqw6SMhGhyLy3TyvIlA3g0q1EO9Ng\naSEbJRDdoNz8Dmrt1Yedf2j7EiYURDqRoKK+dACAkBqYf5eROa4P20U+pl0rDdth\nFRTLg1QeFRQznMR8xbBv3/On+gRoYDCYqoD5Nr0nYQKBgQDKuMsc+18hlhoz23l3\n6uGfRVkPxGRDHnI1rNrlBKuqaVnPROlDlU9zQdBMykpipN5+qla21b9j9mPyOgbH\noSuXa7Rk+uxLx1XksrzQK4LpZoDIykAzdJSEI5rqDFE6A4Wss/Sbow4nJ+RQpiAM\nrKtpKOeOadh5YRIW3qmO9RUPNQKBgQDGFFOaMqkY+Qd8eGLmTaLMLii6QBtz7Dvb\nUDZ5OIiSvyK39TEKm8lLKuOkyhGSGBu0wkJOCNYqP5szlgeL9hL2mMwzsYXVH2Z8\nw3f4ldFSOS0R0GLS/civEBoWRQ8agz0Dc9TXtGIur2K/fot6Bl5Gk/kBoB2IWYzI\n0NaaSp7JhQKBgQCwDUn/smJMlcHNtVXJCcfFfQE6izEThRZkfOhgqey3guSG926o\nzbuA+e//MFLnVg0P7bh+8iRTmL/1teT7a4Gi79trMusRaFy0z3DgTFlVfzpqphKZ\nXS45j35Ssj28ZyCo+mN84l9BLAjA7XS57R6zpd1qtYtU5jNCfz67syYF3QKBgCvV\nfbbG9ULQgUabQY+jqJ40rNCitTCPG6Pp+VQUHa0T3TQGb6bgWMhool3qVb8V1LPI\ntXGdZP+OeeMNlXf0qbemkrHx3CMQwtZjT15UkTD39DBYBDaa8NlE3/EDsVb1qf/k\nlzpw8bVRHLIx593GIQDPaDBi5YYyAwTBqmwUjVUdAoGBAK4lidzKS3/QVSqgVXyK\nqluW9k6olKtrDqJ7bJmK7YJ6WuyQo1ETeHrWltqlvcQ8VTfaZBDhe1r9vsW4mkRH\nNwglgMbuOZ+yay/qlKwsGqUfBfpxmY6oVX0AeXdvArjUYZSbH0B1r/W7Dfq7FK7h\nYJs+cpOzzFFo3Aak8vKdtvWy\n-----END PRIVATE KEY-----\n",
+  "manifest": {
+    "id": "0193a4c8-1111-7222-8333-444455556666",
+    "projectId": "prj_demo",
+    "platform": "android",
+    "channel": "production",
+    "runtimeVersion": "fp_9f8e7d",
+    "label": 42,
+    "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+    "size": 4812345,
+    "createdAt": "2026-08-27T12:00:00.000Z"
+  },
+  "canonical": "{\"channel\":\"production\",\"createdAt\":\"2026-08-27T12:00:00.000Z\",\"id\":\"0193a4c8-1111-7222-8333-444455556666\",\"label\":42,\"platform\":\"android\",\"projectId\":\"prj_demo\",\"runtimeVersion\":\"fp_9f8e7d\",\"sha256\":\"b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9\",\"size\":4812345}",
+  "signature": "Gwxvf3mFcOzUkpmJdoEgxRQ7bvuARf0g77nwxzWD2mxw5rWZ2thyPHHMOrqz7xHdoZf6cBGmsN5JLR+jfql2O5V7I2+krCB24kSgIl7y4FzdLNmuXn4BHXOaUQEXPDJ/7GBXTc5cn93gLcJB1CKaVqknQ7VPcT6/xYRGt3M57xKa2chupyDyaQ6BP89VDSbURjOunF3SNYv9W8n/h+oGkV/fqfPYMYTzGUCbfM47rK7YekA9dUM+as/LroN22Jo2C99yRxbeD+EHfqa8Ymtl/wXWPwzyBrEd/UPOIzGtGu2YwJwH9RsHB5rlmfhmrwIkspSLAbBOzq7qGvFxe2+VBw==",
+  "tamperedManifest": {
+    "id": "0193a4c8-1111-7222-8333-444455556666",
+    "projectId": "prj_demo",
+    "platform": "android",
+    "channel": "production",
+    "runtimeVersion": "fp_9f8e7d",
+    "label": 43,
+    "sha256": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+    "size": 4812345,
+    "createdAt": "2026-08-27T12:00:00.000Z"
+  },
+  "previewToken": {
+    "d": "eyJwdXJwb3NlIjoicHJldmlldyIsInByb2plY3RJZCI6InByal9kZW1vIiwicmVsZWFzZUlkIjoiMDE5M2E0YzgtMTExMS03MjIyLTgzMzMtNDQ0NDU1NTU2NjY2IiwiZXhwIjoxNzU2NzMzNDAwfQ",
+    "s": "XRdsqCqUVFnu9aJ1wFXhA_CJgVPLMBRUcDhonbJUT1Cb_3xcFmA23vUJNloOuJGjHmjf_Dn7468An9iSprQr2oq1DZkW2tyRisdXvl5fZGFZdIDQsqnqUjooVeWYtNm1BZicB2FK5uauS9ESvuwEWtIccGyPl7eGr5OKttcSDvLue-Yrrl84FHJsoj-XTZTjMgJ30eUEVLuXumpFj2_QiUetV5hCcvy-azL69UIGuXfDQlfgObZADyio-ByuQVcOs472uIv9ga5pgIz14q_Huv65DyWNBOkLOKHf6emHVP45m3hXsre6xWwpZ7JiHWii6lUHQr4C_UhfeJPGgndySA",
+    "payload": {
+      "purpose": "preview",
+      "projectId": "prj_demo",
+      "releaseId": "0193a4c8-1111-7222-8333-444455556666",
+      "exp": 1756733400
+    }
+  },
+  "sha256OfEmptyString": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
