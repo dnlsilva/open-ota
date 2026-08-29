@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Open OTA</title>
+    <script>
+      // Applied before first paint so a dark-theme reload never flashes light.
+      try {
+        var t = localStorage.getItem("ota.theme");
+        if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+    <!--
+      The host page may pin the Admin API at runtime, which is how the same
+      static build serves both cases: the server hosting the SPA on its own
+      origin, and `ota console` pointing a local copy at a remote API.
+
+      <script>window.__OTA_API_URL__ = "https://ota.example.com";</script>
+    -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

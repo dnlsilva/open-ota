@@ -1,0 +1,150 @@
+/*
+ * Every colour in the dashboard resolves through one of these tokens.
+ *
+ * Two families, kept apart on purpose:
+ *   - accent  : identity/interaction (links, primary buttons, the main series)
+ *   - healthy / warning / critical : the state of a release
+ * Mixing them would make "blue" mean both "clickable" and "fine", and the
+ * rollback rate is the one number that has to read as a state at a glance.
+ */
+
+:root {
+  color-scheme: light;
+
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --surface-raised: #ffffff;
+  --border: #dde2e9;
+  --border-strong: #c2cad5;
+
+  --text: #10151c;
+  --text-muted: #5a6572;
+  --text-faint: #8b95a2;
+
+  --accent: #3b5bdb;
+  --accent-hover: #31469f;
+  --accent-fg: #ffffff;
+  --accent-soft: #e7ecfd;
+  --accent-soft-fg: #2c44a8;
+
+  --healthy: #0f7a52;
+  --healthy-soft: #dff4e9;
+  --warning: #a25b06;
+  --warning-soft: #fbeed6;
+  --critical: #b3251c;
+  --critical-soft: #fbe2df;
+  --neutral: #5a6572;
+  --neutral-soft: #e6eaf0;
+
+  --chart-1: #3b5bdb; /* primary series — adoption */
+  --chart-2: #0f7a52; /* healthy series — ready */
+  --chart-3: #a25b06; /* warning series — failed */
+  --chart-4: #b3251c; /* critical series — rollbacks */
+  --chart-grid: #e3e8ee;
+  --chart-axis: #8b95a2;
+
+  --focus: #3b5bdb;
+  --overlay: rgb(16 21 28 / 45%);
+  --shadow-1: 0 1px 2px rgb(16 21 28 / 6%), 0 1px 3px rgb(16 21 28 / 4%);
+  --shadow-2: 0 8px 28px rgb(16 21 28 / 14%);
+
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 12px;
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+
+  --header-h: 52px;
+}
+
+/* System preference, unless the manual toggle has pinned light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --bg: #0c1016;
+    --surface: #141a22;
+    --surface-2: #1b222c;
+    --surface-raised: #1b222c;
+    --border: #262f3b;
+    --border-strong: #3a4553;
+
+    --text: #e8eef5;
+    --text-muted: #9aa5b3;
+    --text-faint: #6d7889;
+
+    --accent: #6b8afd;
+    --accent-hover: #8aa2ff;
+    --accent-fg: #0c1016;
+    --accent-soft: #1e2a4a;
+    --accent-soft-fg: #a8bcff;
+
+    --healthy: #46b98a;
+    --healthy-soft: #14312a;
+    --warning: #dda63f;
+    --warning-soft: #34290f;
+    --critical: #f0685c;
+    --critical-soft: #3b1a1a;
+    --neutral: #9aa5b3;
+    --neutral-soft: #222a35;
+
+    --chart-1: #6b8afd;
+    --chart-2: #46b98a;
+    --chart-3: #dda63f;
+    --chart-4: #f0685c;
+    --chart-grid: #232b36;
+    --chart-axis: #6d7889;
+
+    --focus: #6b8afd;
+    --overlay: rgb(3 6 10 / 66%);
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 40%);
+    --shadow-2: 0 10px 32px rgb(0 0 0 / 55%);
+  }
+}
+
+/* Manual toggle wins in both directions. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0c1016;
+  --surface: #141a22;
+  --surface-2: #1b222c;
+  --surface-raised: #1b222c;
+  --border: #262f3b;
+  --border-strong: #3a4553;
+
+  --text: #e8eef5;
+  --text-muted: #9aa5b3;
+  --text-faint: #6d7889;
+
+  --accent: #6b8afd;
+  --accent-hover: #8aa2ff;
+  --accent-fg: #0c1016;
+  --accent-soft: #1e2a4a;
+  --accent-soft-fg: #a8bcff;
+
+  --healthy: #46b98a;
+  --healthy-soft: #14312a;
+  --warning: #dda63f;
+  --warning-soft: #34290f;
+  --critical: #f0685c;
+  --critical-soft: #3b1a1a;
+  --neutral: #9aa5b3;
+  --neutral-soft: #222a35;
+
+  --chart-1: #6b8afd;
+  --chart-2: #46b98a;
+  --chart-3: #dda63f;
+  --chart-4: #f0685c;
+  --chart-grid: #232b36;
+  --chart-axis: #6d7889;
+
+  --focus: #6b8afd;
+  --overlay: rgb(3 6 10 / 66%);
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-2: 0 10px 32px rgb(0 0 0 / 55%);
+}
