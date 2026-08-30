@@ -1,0 +1,24 @@
+{
+  "name": "@open-ota/expo-demo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "End-to-end harness: a real Expo app pointed at a local Open OTA server",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start --dev-client",
+    "prebuild": "expo prebuild --clean",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
+  },
+  "dependencies": {
+    "@open-ota/react-native": "workspace:*",
+    "expo": "~52.0.0",
+    "react": "18.3.1",
+    "react-native": "0.76.9"
+  },
+  "devDependencies": {
+    "@open-ota/cli": "workspace:*",
+    "@types/react": "^18.3.12",
+    "typescript": "^5.7.2"
+  }
+}
