@@ -1,0 +1,44 @@
+name = "open-ota"
+main = "src/entry/worker.ts"
+compatibility_date = "2025-01-01"
+# postgres-js and the AWS SDK both need the Node built-ins.
+compatibility_flags = ["nodejs_compat"]
+
+# Postgres over Hyperdrive. Create it with the connection string of any Postgres
+# (Supabase, Neon, RDS) and paste the printed id:
+#   wrangler hyperdrive create open-ota --connection-string="postgres://..."
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "<hyperdrive-id>"
+
+# The bundle bucket: wrangler r2 bucket create ota-bundles
+# The binding attaches the bucket to the Worker; uploads are still signed through
+# the S3 endpoint below, which is the only API that can issue a signed PUT.
+[[r2_buckets]]
+binding = "BUNDLES"
+bucket_name = "ota-bundles"
+
+[vars]
+OTA_MODE = "self"
+STORAGE_DRIVER = "s3"
+STORAGE_BUCKET = "ota-bundles"
+STORAGE_REGION = "auto"
+# https://<account-id>.r2.cloudflarestorage.com
+# STORAGE_ENDPOINT = ""
+# Public r2.dev domain or your own CDN hostname in front of the bucket.
+# PUBLIC_BUNDLE_BASE_URL = ""
+# Required in hosted mode; also used to build OAuth and preview URLs.
+# PUBLIC_URL = "https://ota.example.com"
+# CORS_ORIGINS = "https://ota.example.com"
+# EMAIL_DRIVER = "resend"
+# EMAIL_FROM = "Open OTA <noreply@example.com>"
+
+# Secrets — set with `wrangler secret put <NAME>`, never in this file:
+#   OTA_MASTER_KEY        seals every project's private signing key
+#   STORAGE_ACCESS_KEY    R2 API token id
+#   STORAGE_SECRET_KEY    R2 API token secret
+#   RESEND_API_KEY        only with EMAIL_DRIVER=resend
+#   STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET   only with OTA_MODE=hosted
+
+# Migrations do not run on this target. Point DATABASE_URL at the same database
+# and run `pnpm --filter @open-ota/server db:migrate` before the first deploy.
