@@ -1,0 +1,79 @@
+name: open-ota
+
+services:
+  server:
+    build: .
+    image: openota/server:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://ota:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/ota
+      OTA_MODE: ${OTA_MODE:-self}
+      OTA_MASTER_KEY: ${OTA_MASTER_KEY:?set OTA_MASTER_KEY in .env — see .env.example}
+      OTA_ADMIN_EMAIL: ${OTA_ADMIN_EMAIL:-}
+      OTA_ADMIN_PASSWORD: ${OTA_ADMIN_PASSWORD:-}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      STORAGE_DRIVER: s3
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-http://minio:9000}
+      STORAGE_REGION: ${STORAGE_REGION:-us-east-1}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-ota-bundles}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-ota-minio}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:?set STORAGE_SECRET_KEY in .env}
+      STORAGE_FORCE_PATH_STYLE: "true"
+      PUBLIC_BUNDLE_BASE_URL: ${PUBLIC_BUNDLE_BASE_URL:-}
+      EMAIL_DRIVER: ${EMAIL_DRIVER:-console}
+      EMAIL_FROM: ${EMAIL_FROM:-Open OTA <noreply@localhost>}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PORTAL_RETURN_URL: ${STRIPE_PORTAL_RETURN_URL:-}
+    ports: ["${PORT:-3000}:3000"]
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ota
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ota
+    volumes: [ota-postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ota"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # Drop minio and minio-init once STORAGE_* points at S3 or R2.
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:-ota-minio}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY}
+    volumes: [ota-minio:/data]
+    ports: ["9000:9000", "9001:9001"]
+    restart: unless-stopped
+
+  # One shot: create the bucket and make it world-readable, because devices
+  # download bundles with no credentials. Retries instead of waiting on a
+  # healthcheck — the minio image ships no shell tool to probe itself with.
+  minio-init:
+    image: minio/mc
+    depends_on: [minio]
+    environment:
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-ota-bundles}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-ota-minio}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+    entrypoint: >
+      sh -c "
+      until mc alias set ota http://minio:9000 $$STORAGE_ACCESS_KEY $$STORAGE_SECRET_KEY; do sleep 1; done &&
+      mc mb --ignore-existing ota/$$STORAGE_BUCKET &&
+      mc anonymous set download ota/$$STORAGE_BUCKET"
+
+volumes:
+  ota-postgres:
+  ota-minio:
