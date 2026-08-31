@@ -1,0 +1,22 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'dev.openota'
+version = '0.1.0'
+
+android {
+  namespace "dev.openota"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+}
+
+dependencies {
+  // Real org.json on the unit-test classpath: android.jar's copy is a stub that
+  // throws "not mocked" (CanonicalJsonTest is a plain JVM test).
+  testImplementation 'org.json:json:20231013'
+  testImplementation 'junit:junit:4.13.2'
+}
