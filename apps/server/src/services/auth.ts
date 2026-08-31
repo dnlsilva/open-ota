@@ -33,7 +33,7 @@ export async function signup(
   }
 
   if (!ctx.config.hosted) {
-    const [{ count }] = await ctx.db.select({ count: sql<number>`count(*)::int` }).from(users);
+    const [{ count } = { count: 0 }] = await ctx.db.select({ count: sql<number>`count(*)::int` }).from(users);
     if (count > 0) {
       throw ApiError.forbidden("This server is self-hosted and already has an account");
     }

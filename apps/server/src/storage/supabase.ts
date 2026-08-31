@@ -59,7 +59,7 @@ export function createSupabaseStorage(config: AppConfig): StorageAdapter {
       const res = await fetch(`${base}/storage/v1/object/${bucket}/${objectKey}`, {
         method: "POST",
         headers: { ...auth, "content-type": contentType, "x-upsert": "true" },
-        body,
+        body: body as BodyInit,
       });
       if (!res.ok) throw new Error(`Supabase upload failed: ${res.status}`);
     },
