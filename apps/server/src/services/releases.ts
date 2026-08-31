@@ -247,9 +247,9 @@ export async function confirmRelease(ctx: AppContext, releaseId: string): Promis
     );
   }
 
-  // Where re-reading is cheap (local disk), confirm the digest rather than
-  // trusting the publisher's word for it.
-  if (ctx.storage.name === "local" && ctx.storage.get) {
+  // Where re-reading is cheap, confirm the digest rather than taking the
+  // publisher's word for it.
+  if (ctx.storage.readsAreCheap && ctx.storage.get) {
     const bytes = await ctx.storage.get(row.storageKey);
     if (bytes) {
       const { sha256Hex } = await import("@open-ota/shared");
