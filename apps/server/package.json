@@ -1,7 +1,7 @@
 {
   "name": "@open-ota/server",
   "version": "0.1.0",
-  "description": "Open OTA server — Device API, Admin API, MCP endpoint. Runs on Node, Deno (Supabase Edge) and Cloudflare Workers",
+  "description": "Open OTA server \u2014 Device API, Admin API, MCP endpoint. Runs on Node, Deno (Supabase Edge) and Cloudflare Workers",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/db/migrate-cli.ts"
+    "db:migrate": "tsx src/db/migrate-cli.ts",
+    "demo": "tsx scripts/demo-server.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.717.0",
