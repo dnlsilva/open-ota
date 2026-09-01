@@ -1,6 +1,7 @@
 /**
  * Minimal OAuth 2.1 authorization server — just enough that
- * `claude mcp add --transport http ota https://…/mcp` connects in one command.
+ * An MCP client pointed at /mcp connects in one step: the 401 advertises this
+ * server, the client registers itself and runs the PKCE flow.
  *
  * PKCE with S256 is mandatory, clients are public (no secret), and the access
  * tokens it issues ARE `api_tokens` rows with kind "oauth": one token system,

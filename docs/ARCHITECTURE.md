@@ -1,6 +1,6 @@
 # Arquitetura
 
-## 1. Análise das soluções existentes
+## 1. Fundamentos: de onde vêm as ideias
 
 ### 1.1 CodePush / App Center (†2025)
 
@@ -13,7 +13,7 @@ Modelo operacional que queremos recuperar:
 - **Code signing opcional**: hash do conteúdo assinado em JWT; public key embutida no app.
 - **Diffs** entre releases para economizar banda.
 
-Limitações: sem fingerprint (compatibilidade manual via semver), infra fechada, morto.
+O que não pegamos daqui: compatibilidade por range semver, que depende de alguém acertar o range em toda release. Trocado por fingerprint.
 
 ### 1.2 Expo Updates / EAS Update
 
@@ -25,7 +25,7 @@ O protocolo mais bem projetado do ecossistema ([spec aberta](https://docs.expo.d
 - **Anti-bricking**: se um update falha ao lançar, o app sobe com o último update bom ou o embarcado.
 - **Channels → branches** com rollout % por canal; update groups (iOS+Android publicados juntos).
 
-Limitações: servidor de verdade só o hosted (EAS, pago); protocolo multipart + assets individuais é mais complexo do que precisamos; insights de adoção limitados.
+O que não pegamos daqui: o protocolo multipart com assets individuais. Controlamos os dois lados do fio, então um zip por release com um digest resolve o mesmo problema com muito menos superfície — download parcial e diffs binários são a razão para revisitar isso um dia.
 
 ### 1.3 hot-updater
 
@@ -38,28 +38,24 @@ Referência de mecanismo self-hosted (verificado em hot-updater.dev, 2026):
 - **Plugins**: build (Metro/Re.Pack/Expo/Rock), storage (S3/R2/Supabase/Firebase), database (Postgres/D1/Firestore). Console web local.
 - Boot path: o app nativo pergunta ao SDK qual bundle carregar (`getJSBundleFile()` no Android, `bundleURL` no iOS), injetado por config plugin no Expo.
 
-**O que falta (nosso diferencial)**: telemetria/adoção, dashboard de métricas, rollout %, promote entre canais, code signing, API de administração, MCP, preview por QR, identificação de instalação.
+O mecanismo de update aqui é sólido e é a base do nosso. O que este projeto constrói por cima é a metade operacional: telemetria e adoção, rollout gradual, promote entre canais, assinatura obrigatória, API de administração, MCP e preview por QR.
 
-### 1.4 Comparativo e o que reutilizamos
+### 1.4 Conceitos herdados
 
-| Capacidade | CodePush† | EAS Update | hot-updater | **Open OTA** |
-|---|---|---|---|---|
-| Self-hosted | parcial | ✗ | ✓ | ✓ |
-| Compatibilidade nativa | semver manual | fingerprint | fingerprint | **fingerprint** (semver depois) |
-| Assinatura de código | opcional (JWT) | ✓ (cert) | ✗ | **✓ sempre** (RSA por projeto) |
-| Rollback automático no device | ✓ | ✓ | ✓ | ✓ |
-| Rollback/disable pelo servidor | ✓ | ✓ (diretiva) | parcial | ✓ (diretiva) |
-| Rollout % | ✓ | ✓ | ✗ | ✓ |
-| Promote entre canais | ✓ | ✓ | ✗ | ✓ |
-| Métricas de adoção/active users | ✓ | limitado | ✗ | ✓ |
-| Dashboard admin | ✓ | ✓ | console local | ✓ |
-| MCP / agentes | ✗ | ✗ | skill p/ CLI | **✓ nativo** |
-| Abrir release via QR/deep link | ✗ | ✗* | ✗ | **✓** |
-| Diffs binários | ✓ | ✗ | ✓ | futuro |
+Este projeto não inventou o mecanismo de OTA do zero — ele fica em cima de padrões que o ecossistema já provou. Crédito onde é devido:
 
-*\* Expo Go/dev builds têm QR, mas não para releases de produção em app instalado.*
+| Ideia | Origem | Por que ficou |
+|---|---|---|
+| UUIDv7 como identidade de release + floor de build | hot-updater | A cronologia mora no próprio id: comparar contra o floor gravado no binário não precisa de coluna extra nem de relógio no device |
+| Boot path via `getJSBundleFile()` / `bundleURL` injetado por config plugin | hot-updater | Único ponto onde dá pra decidir o bundle antes do JS existir |
+| `runtimeVersion` = fingerprint do projeto nativo | Expo Updates | Compatibilidade vira propriedade estrutural em vez de convenção que alguém precisa lembrar |
+| Diretiva de voltar ao bundle embarcado | Expo Updates | Fecha o caso "não há mais nada que este device possa rodar" |
+| Manifest assinado com chave embutida no app | Expo Updates / CodePush | Integridade não depende de o storage ser confiável |
+| `notifyAppReady()` + reversão em crash no primeiro launch | CodePush | O coração do rollback automático |
+| Métricas por contadores, nunca stream de eventos | CodePush | É o que torna adoção por versão barata em qualquer escala |
+| Rollout %, promote entre canais, mandatory, label incremental | CodePush | Modelo operacional que já provou funcionar na prática |
 
-**Conceitos herdados**: UUIDv7 como identidade de release + floor de build (hot-updater) · fingerprint como runtimeVersion e diretiva rollback-to-embedded (Expo) · notifyAppReady + contadores + rollout % + promote + mandatory (CodePush) · manifest assinado com chave embutida (Expo/CodePush).
+**O que este projeto acrescenta**: assinatura obrigatória por projeto com chave selada em repouso · telemetria de adoção com dashboard próprio · rollout determinístico e sem estado · preview de release por deep link assinado com QR · MCP em dois transportes com contrato único · um codebase que roda em Node, Deno e Workers · modo multi-tenant com billing.
 
 ---
 
@@ -86,7 +82,7 @@ Referência de mecanismo self-hosted (verificado em hot-updater.dev, 2026):
 | Modo hosted ✅ | **Mesmo codebase roda o SaaS do Daniel**: `OTA_MODE=hosted` liga multi-tenant (orgs, signup, billing); self-host roda com org única invisível | fork/produto separado | Um código, dois modos. Multi-tenant estrutural (orgs+membership+quotas) sai no v1. |
 | Billing ✅ | **Stripe completo no v1**: checkout, customer portal, webhooks, trial, upgrade/downgrade | estrutura + cobrança manual | Decisão de Daniel. Quotas por plano com enforcement; regra de produto: estourar quota **bloqueia publish novo, nunca corta update-check dos apps em produção** — o app do cliente final nunca quebra por billing. |
 | Signup hosted ✅ | **Aberto, self-serve, e-mail verificado** | convite/waitlist | Org criada no plano free/trial com quotas baixas; rate limit + quotas seguram abuso. E-mail via interface `sendEmail` (driver Resend no hosted, SMTP no self-host). |
-| MCP ✅ | **Tools definidas uma vez, dois transportes**: stdio local (`ota mcp`) e **remoto Streamable HTTP em `/mcp` com OAuth 2.1 + DCR** | só stdio | "Conectar e funcionar bala": `claude mcp add --transport http` → browser → login → pronto, zero instalação. Fallback `--header Authorization: Bearer`. Self-hosts ganham a rota de graça. |
+| MCP ✅ | **Tools definidas uma vez, dois transportes**: stdio local (`ota mcp`) e **remoto Streamable HTTP em `/mcp` com OAuth 2.1 + DCR** | só stdio | "Conectar e funcionar bala": apontar um cliente MCP para `/mcp` → browser → login → pronto, zero instalação. Fallback `--header Authorization: Bearer`. Self-hosts ganham a rota de graça. |
 | Monorepo | pnpm workspaces (+ turborepo se builds doerem) | nx | Simples. |
 
 ### Um serviço só (monolito modular)
@@ -225,9 +221,9 @@ Publish default publica iOS+Android como duas releases ligadas por um `group_id`
 As tools (schema Zod + handler sobre a service layer) vivem em `packages/shared` e são expostas por dois transportes:
 
 1. **Remoto — `/mcp` no próprio server (Streamable HTTP)** ✅, o caminho "conectar e funcionar bala" do hosted:
-   - `claude mcp add --transport http ota https://api.<dominio>/mcp` → browser abre → login/consent → conectado. Zero instalação local. Mesmo fluxo em Cursor/Codex/etc.
+   - O cliente MCP recebe `https://api.<dominio>/mcp` → browser abre → login/consent → conectado. Zero instalação local, mesmo fluxo em qualquer cliente que fale MCP.
    - Auth: **OAuth 2.1 com PKCE + Dynamic Client Registration** (o server é o próprio authorization server: `/.well-known/oauth-protected-resource`, `/oauth/authorize` — tela de login/consent da SPA —, `/oauth/token`, `/oauth/register`). Os access tokens são os mesmos `api_tokens` Bearer (um sistema de tokens só), com escopo `read`/`admin` e org do usuário.
-   - Fallback sem OAuth: `claude mcp add --transport http ota <url> --header "Authorization: Bearer ota_..."`.
+   - Fallback sem OAuth: o cliente envia o header `Authorization: Bearer ota_...` direto.
    - Self-hosts têm a mesma rota de graça — MCP remoto não é exclusividade do hosted.
 2. **Local — `ota mcp` (stdio)**: mesmo conjunto de tools via CLI, com `OTA_API_URL`/`OTA_TOKEN` no env. Útil offline/CI e para quem não quer expor `/mcp`.
 
