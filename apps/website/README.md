@@ -7,18 +7,22 @@ pnpm --filter @open-ota/website dev      # local, http://localhost:4321
 pnpm --filter @open-ota/website build    # → apps/website/dist
 ```
 
-## Deploying to Cloudflare Pages
+## Deploying to Cloudflare
 
-Connect the repository in the Cloudflare dashboard (Workers & Pages → Create → Pages) with:
+The site ships as an assets-only Worker described by `wrangler.jsonc` in this
+directory. In the Cloudflare dashboard (Workers & Pages → the connected repo →
+Settings → Build):
 
 | Setting | Value |
 |---|---|
 | Build command | `pnpm --filter @open-ota/website build` |
-| Build output directory | `apps/website/dist` |
+| Deploy command | `npx wrangler deploy --config apps/website/wrangler.jsonc` |
 | Root directory | `/` (the repo root — the build needs the workspace) |
-| Environment | `NODE_VERSION=22` |
 
-Then attach the `open-ota.dev` custom domain to the Pages project. Every push to `main` redeploys.
+A bare `npx wrangler deploy` fails here on purpose: the repo root is a
+workspace and also contains the API server's own `wrangler.toml`, so the
+config path has to be explicit. Attach the `open-ota.dev` custom domain to the
+`open-ota-website` Worker. Every push to `main` redeploys.
 
 The docs live in `src/content/docs/` as plain Markdown; the sidebar is defined in `astro.config.mjs`. The landing page is `src/pages/index.astro` and deliberately ships a single dark theme so the product screenshots sit in it natively — the docs have both themes.
 

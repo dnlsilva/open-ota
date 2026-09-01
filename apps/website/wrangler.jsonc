@@ -1,0 +1,19 @@
+// open-ota.dev — the website as an assets-only Worker.
+//
+// The repo root is a pnpm workspace and also contains the API server's own
+// wrangler.toml, so a bare `wrangler deploy` cannot guess what to ship. Point
+// it here explicitly:
+//
+//   build command:   pnpm --filter @open-ota/website build
+//   deploy command:  npx wrangler deploy --config apps/website/wrangler.jsonc
+//
+// Attach the open-ota.dev custom domain to this Worker in the dashboard.
+{
+  "name": "open-ota-website",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    // Serve Astro's built /404.html for unknown paths.
+    "not_found_handling": "404-page"
+  }
+}
