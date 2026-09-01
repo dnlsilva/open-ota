@@ -96,7 +96,7 @@ Valida o token de preview (§4.3) server-side e devolve o mesmo formato do updat
 | `PUT/GET /storage/:key` | **só no driver `local`** (que não assina URL): passthrough de upload/download. Recusa release que não esteja `pending`, valida o formato da key e aplica o teto de tamanho |
 | `POST /auth/signup` · `POST /auth/verify-email` | hosted ✅: cria conta → e-mail de verificação (`sendEmail`: Resend/SMTP) → verifica → cria org no plano free/trial. `OTA_MODE=self`: signup fechado após o primeiro usuário |
 | `POST /auth/login` | e-mail+senha → `{token}` (Bearer; revogável em settings) |
-| `GET/PATCH /orgs/:id` · `GET/POST/DELETE /orgs/:id/members` | org e membros (roles owner/admin/member) |
+| `GET /orgs` · `GET /orgs/:id/usage` | org e uso vs quota. Gestão de membros (convites, PATCH/DELETE) **ainda não implementada** — roles existem no schema e valem para billing |
 | `POST /billing/checkout` · `POST /billing/portal` · `POST /billing/webhook` | hosted ✅: Stripe checkout session, customer portal, webhooks idempotentes (`stripe_events`) |
 | `GET /orgs/:id/usage` | uso vs quotas do plano (projetos, devices ativos/30d, storage) |
 | `POST/GET /mcp` | MCP Streamable HTTP (§1) — mesmas tools do `ota mcp` stdio |
@@ -182,7 +182,7 @@ Esta seção reflete o código, não o plano. Onde houver divergência com as se
 | Storage | S3-compatível, Supabase Storage e disco local. Adapter declara `readsAreCheap`; onde é barato, o server reconfere o digest no confirm |
 | Banco | Postgres, um dialeto. Migrations versionadas; a suíte de integração roda **essas mesmas migrations** num Postgres real embarcado (PGlite), sem Docker |
 
-Testes: 191 no total (39 shared · 43 SDK · 36 CLI · 73 server). O que **não** foi validado ainda é o que só hardware resolve — boot path nativo e resolução de assets offline em iOS/Android reais, nas duas arquiteturas do React Native.
+Testes: a contagem vive no CI e no badge do README — número fixo aqui só envelhece. O que **não** foi validado ainda é o que só hardware resolve — boot path nativo e resolução de assets offline em iOS/Android reais, nas duas arquiteturas do React Native.
 
 ### 5.1 Correções encontradas na integração
 

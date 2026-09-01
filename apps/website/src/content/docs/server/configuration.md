@@ -48,18 +48,17 @@ uploaded digest before activating a release.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `EMAIL_DRIVER` | `console` | `console`, `resend` or `smtp`. |
+| `EMAIL_DRIVER` | `console` | `console` or `resend`. |
 | `EMAIL_FROM` | `Open OTA <noreply@localhost>` | From address on outbound mail. |
 | `RESEND_API_KEY` | unset | Required for real delivery; without it the `resend` driver falls back to the log. |
 
 Mail is only sent for hosted email verification, so a self-hosted install can
 leave this alone and read the link out of the server log.
 
-:::caution
-`smtp` is accepted by the schema but not implemented. `createEmailSender` has
-one real branch — Resend — and everything else prints the message to the server
-log. Use `resend`, or read the log.
-:::
+There is deliberately no `smtp` value: no driver exists, and a value the schema
+accepts but nothing implements would silently swallow mail. `console` prints
+every message to the server log, which is how a self-hosted install reads its
+own verification link.
 
 ## Billing
 

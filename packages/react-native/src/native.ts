@@ -36,6 +36,8 @@ export interface OpenOtaNativeModule extends OtaConstants {
   setChannel(channel: string): Promise<void>;
   exitPreview(): Promise<void>;
   clearFailed(): Promise<void>;
+  /** Drains events natively queued across launches (crash rollbacks). */
+  takePendingEvents(): Promise<Array<Record<string, unknown>>>;
   addListener<E extends keyof OtaEventMap>(
     event: E,
     listener: (payload: OtaEventMap[E]) => void,
@@ -70,6 +72,7 @@ function stub(): OpenOtaNativeModule {
     setChannel: unavailable,
     exitPreview: unavailable,
     clearFailed: unavailable,
+    takePendingEvents: unavailable,
     addListener: unavailable,
   };
 }
@@ -83,6 +86,78 @@ export function setNativeModule(mock: OpenOtaNativeModule | undefined): void {
   cached = undefined;
 }
 
+/** OtaError codes that mean the payload failed verification, not the network. */
+const VERIFY_CODES = new Set([
+  "ERR_OTA_SIGNATURE_INVALID",
+  "ERR_OTA_HASH_MISMATCH",
+  "ERR_OTA_MANIFEST_MISMATCH",
+  "ERR_OTA_EXTRACT_FAILED",
+]);
+
+/** Raw bridge payload → the public UpdateState union. Exported for tests. */
+export function translateUpdateState(raw: Record<string, unknown>): OtaEventMap["updateState"] | null {
+  const releaseId = typeof raw.releaseId === "string" ? raw.releaseId : "";
+  switch (raw.state) {
+    case "downloading":
+      return { state: "downloading", releaseId };
+    case "pending":
+      // Staged for the next launch — what the public union calls installed.
+      return { state: "installed", releaseId };
+    case "ready":
+      return { state: "ready", releaseId };
+    case "rolledBack": {
+      const reason = raw.reason;
+      return {
+        state: "rollback",
+        releaseId,
+        reason:
+          reason === "crash" || reason === "verifyFailed" || reason === "server" ? reason : "manual",
+        ...(typeof raw.from === "string" ? { fromReleaseId: raw.from } : {}),
+      };
+    }
+    case "failed": {
+      const code = typeof raw.code === "string" ? raw.code : undefined;
+      if (code && VERIFY_CODES.has(code)) return { state: "verifyFailed", releaseId, stage: code };
+      return { state: "error", message: code ?? "install failed", releaseId };
+    }
+    default:
+      return null;
+  }
+}
+
+function translateProgress(raw: Record<string, unknown>): OtaEventMap["downloadProgress"] {
+  const written = typeof raw.written === "number" ? raw.written : 0;
+  const total = typeof raw.total === "number" ? raw.total : 0;
+  return {
+    bytesWritten: written,
+    totalBytes: total,
+    fraction: total > 0 ? Math.min(1, written / total) : 0,
+  };
+}
+
+function withTranslation(module: OpenOtaNativeModule): OpenOtaNativeModule {
+  const rawAddListener = module.addListener.bind(module);
+  return Object.create(module, {
+    addListener: {
+      value<E extends keyof OtaEventMap>(event: E, listener: (payload: OtaEventMap[E]) => void) {
+        return rawAddListener(event, (raw: unknown) => {
+          const payload = (raw ?? {}) as Record<string, unknown>;
+          if (event === "updateState") {
+            const translated = translateUpdateState(payload);
+            if (translated) listener(translated as OtaEventMap[E]);
+            return;
+          }
+          if (event === "downloadProgress") {
+            listener(translateProgress(payload) as OtaEventMap[E]);
+            return;
+          }
+          listener(payload as OtaEventMap[E]);
+        });
+      },
+    },
+  });
+}
+
 export function nativeModule(): OpenOtaNativeModule {
   if (injected) return injected;
   if (cached) return cached;
@@ -92,7 +167,7 @@ export function nativeModule(): OpenOtaNativeModule {
     const core = require("expo-modules-core") as {
       requireNativeModule: (name: string) => OpenOtaNativeModule;
     };
-    cached = core.requireNativeModule("OpenOta");
+    cached = withTranslation(core.requireNativeModule("OpenOta"));
   } catch {
     cached = stub();
   }

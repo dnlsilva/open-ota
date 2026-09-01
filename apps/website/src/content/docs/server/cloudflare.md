@@ -70,18 +70,15 @@ executes.
 
 | Step | Command |
 |---|---|
-| Create the D1 database | `wrangler d1 create open-ota` |
 | Create the R2 bucket | `wrangler r2 bucket create ota-bundles` |
-| Apply the migrations | `wrangler d1 migrations apply open-ota --remote` |
+| Create the Hyperdrive config | `wrangler hyperdrive create open-ota --connection-string <postgres://…>` (copy the printed id into `wrangler.toml`) |
+| Apply the migrations | `DATABASE_URL=postgres://… pnpm --filter @open-ota/server db:migrate` — over a direct connection, not through the Worker |
 | Store the master key | `wrangler secret put OTA_MASTER_KEY` (wrangler reads the value from stdin; the CLI prints the generated key to paste) |
 | Deploy the Worker | `wrangler deploy` |
 
-:::caution
-The first and third steps are stale. They provision D1, which the design moved
-away from: the Worker entry and `wrangler.toml` expect Postgres over
-Hyperdrive, and there is one SQL dialect across all three targets. Use the
-manual sequence below and treat the provider as a reminder of the shape.
-:::
+The database itself lives wherever you run Postgres — Supabase, Neon, RDS or a
+box of your own. Hyperdrive is the pooled path from the Worker to it, not a
+database; there is one SQL dialect across every target.
 
 ## Doing it by hand
 

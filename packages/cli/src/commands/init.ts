@@ -53,6 +53,7 @@ export function registerInit(program: Command): void {
           projectId: project.id,
           apiUrl: config.apiUrl as string,
           channel: options.channel,
+          appKey: project.appKey,
           deepLinkScheme: scheme,
           publicKey: project.publicKey,
           runtimeVersion: { policy: "fingerprint" },
@@ -67,6 +68,7 @@ export function registerInit(program: Command): void {
           channel: projectConfig.channel,
           scheme,
           publicKey: project.publicKey,
+          appKey: project.appKey,
         });
 
         if (options.provider) {
@@ -141,7 +143,10 @@ async function pickProject(
   return project;
 }
 
-async function wireApp(projectRoot: string, options: PluginOptions & { publicKey?: string }): Promise<void> {
+async function wireApp(
+  projectRoot: string,
+  options: PluginOptions & { publicKey?: string; appKey?: string },
+): Promise<void> {
   if (hasExpoUpdates(projectRoot)) {
     warn("This project also uses expo-updates. Two owners of the JS bundle will fight — remove it first.");
   }
@@ -173,10 +178,28 @@ async function wireApp(projectRoot: string, options: PluginOptions & { publicKey
       note(`Install it and re-run \`ota init\`: npm install ${PLUGIN_PACKAGE}`);
       return;
     }
-    const codemodOptions = { projectRoot, ...pluginOptions, publicKey: options.publicKey };
-    await codemods.applyAndroid(codemodOptions);
-    await codemods.applyIos(codemodOptions);
-    ok("Patched the native boot path (MainApplication / AppDelegate) and the deep link scheme.");
+    const codemodConfig = {
+      projectId: options.projectId,
+      apiUrl: options.apiUrl,
+      appKey: options.appKey,
+      channel: options.channel,
+      scheme: options.scheme,
+      publicKey: options.publicKey,
+    };
+    const checks = [
+      ...codemods.applyAndroid(projectRoot, codemodConfig),
+      ...codemods.applyIos(projectRoot, codemodConfig),
+    ];
+    for (const check of checks) {
+      if (check.status === "applied") continue;
+      if (check.status === "notApplicable") continue;
+      warn(`${check.id}: ${check.status}${check.reason ? ` — ${check.reason}` : ""}`);
+    }
+    if (checks.every((c) => c.status === "applied" || c.status === "notApplicable")) {
+      ok("Patched the native boot path (MainApplication / AppDelegate) and the deep link scheme.");
+    } else {
+      note("Fix the items above and re-run `ota init`; `ota doctor` re-checks them.");
+    }
     return;
   }
 

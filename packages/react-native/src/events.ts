@@ -91,6 +91,22 @@ export class EventQueue {
     void this.persist();
   }
 
+  /**
+   * Rows drained from the native events file (crash rollbacks queued before
+   * any JS ran). Native writes them already in the wire shape; anything that
+   * does not look like one is dropped rather than sent as garbage.
+   */
+  enqueueRaw(row: Record<string, unknown>): void {
+    const { type, release, ts, meta } = row as Partial<DeviceEvent>;
+    if (typeof type !== "string" || typeof release !== "string") return;
+    this.enqueue({
+      type: type as DeviceEvent["type"],
+      release,
+      ...(typeof ts === "number" ? { ts } : {}),
+      ...(meta && typeof meta === "object" ? { meta: meta as DeviceEvent["meta"] } : {}),
+    });
+  }
+
   /** Native reports outcomes JS never sees — a crash rollback on the last boot. */
   enqueueNativeState(event: UpdateState): void {
     const type = NATIVE_STATE_EVENTS[event.state];

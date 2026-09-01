@@ -72,7 +72,7 @@ Este projeto não inventou o mecanismo de OTA do zero — ele fica em cima de pa
 | Storage | **Storage adapter**: S3-compatível (R2 / S3 / MinIO) + **Supabase Storage** | — | Bundles imutáveis atrás de CDN. Interface mínima: `putSignedUrl / publicUrl / head`. R2 = zero egress. |
 | CDN | o do provider (Cloudflare, CDN do Supabase Storage) | CloudFront | `cache-control: immutable` — release nunca muda (novo conteúdo = nova release). |
 | Dashboard ✅ | **React SPA (Vite), estática** | Next.js | Confirmado. Estático = hospedável em qualquer lugar: servida pelo server no self-host, `ota console` local nos targets edge, deploy estático opcional (Pages etc.). SSR/SEO irrelevantes p/ ferramenta atrás de login. |
-| Auth ✅ | **Bearer token para tudo** (validado 2026-09-01): login e-mail+senha (argon2) emite token opaco; dashboard, `ota console`, CLI e MCP usam o mesmo mecanismo | cookie de sessão p/ dashboard | Cookie quebraria o `ota console` local contra API remota (CORS/SameSite entre domínios) e duplicaria auth. Trade-off: token em localStorage é levemente pior que cookie httpOnly contra XSS — ferramenta atrás de login, aceitável. Tokens com hash no banco, escopo por projeto, revogáveis, `last_used_at`. |
+| Auth ✅ | **Bearer token para tudo** (validado 2026-09-01): login e-mail+senha (PBKDF2-HMAC-SHA256, 600k iterações — argon2 exigiria módulo nativo que não roda em edge) emite token opaco; dashboard, `ota console`, CLI e MCP usam o mesmo mecanismo | cookie de sessão p/ dashboard | Cookie quebraria o `ota console` local contra API remota (CORS/SameSite entre domínios) e duplicaria auth. Trade-off: token em localStorage é levemente pior que cookie httpOnly contra XSS — ferramenta atrás de login, aceitável. Tokens com hash no banco, escopo por projeto, revogáveis, `last_used_at`. |
 | SDK nativo | **Expo Modules API** (Kotlin/Swift) | TurboModule puro, Nitro | Funciona em Expo **e** bare RN (via expo-modules-core), abstrai Old/New Arch na ponte, muito menos boilerplate. Custo: dependência de expo-modules-core em apps bare — padrão de mercado hoje. |
 | Arquiteturas RN ✅ | **Old E New Architecture** | New Arch only | Decisão de Daniel: alcance máximo (apps legados). Custo assumido: **dois caminhos de injeção do boot path** — bridge (`ReactNativeHost.getJSBundleFile`) e bridgeless (`ReactHost`) — e matriz de teste maior. Alvo: RN 0.73+ / Expo SDK 50+; iOS 15.1+; Android API 24+. |
 | SDK setup ✅ | **Autoconfig p/ Expo e bare RN** | Expo-first | Decisão de Daniel: paridade desde o início. Expo via config plugin; bare via codemods do `ota init` + validação do `ota doctor`. |
@@ -87,7 +87,7 @@ Este projeto não inventou o mecanismo de OTA do zero — ele fica em cima de pa
 
 ### Um serviço só (monolito modular)
 
-Device API (tráfego alto, latência importa) e Admin API (tráfego baixo) vivem no mesmo app Hono, em routers separados. Trade-off: separar daria escala independente e menos blast radius, mas dobraria deploy/observabilidade para um sistema que em pico de 100k devices faz ~50 req/s. Os routers já separados tornam a cisão futura mecânica.
+Device API (tráfego alto, latência importa) e Admin API (tráfego baixo) vivem no mesmo app Hono, em routers separados. Trade-off: separar daria escala independente e menos blast radius, mas dobraria deploy/observabilidade para um sistema que em pico de 100k devices faz ~60 req/s (§6). Os routers já separados tornam a cisão futura mecânica.
 
 ### Provider-agnóstico: um codebase, três targets
 
@@ -409,7 +409,6 @@ services:
     environment:
       DATABASE_URL: postgres://...
       OTA_MASTER_KEY: ...        # criptografa chaves privadas de projeto at rest
-      SESSION_SECRET: ...
       STORAGE_ENDPOINT: ...      # R2/S3/MinIO
       STORAGE_BUCKET: ota-bundles
       STORAGE_ACCESS_KEY / STORAGE_SECRET_KEY: ...

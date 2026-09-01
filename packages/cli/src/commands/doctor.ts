@@ -156,21 +156,18 @@ async function wiringCheck(config: ResolvedConfig): Promise<Check> {
     if (typeof codemods.verify !== "function") {
       return { name: "native wiring", status: "skip", detail: "installed SDK has no verify()" };
     }
-    const result = await codemods.verify({
-      projectRoot,
-      projectId: config.projectId ?? "",
-      apiUrl: config.apiUrl ?? "",
-      channel: config.channel,
-      scheme: config.deepLinkScheme,
-      publicKey: config.publicKey,
-    });
-    const failures = (result.checks ?? []).filter((check) => !check.ok);
+    const result = codemods.verify(projectRoot);
+    const failures = result.checks.filter(
+      (check) => check.status !== "applied" && check.status !== "notApplicable",
+    );
     return result.ok
       ? { name: "native wiring", status: "pass", detail: "boot path patched" }
       : {
           name: "native wiring",
           status: "fail",
-          detail: failures.map((check) => check.message ?? check.name).join("; ") || "run `ota init` again",
+          detail:
+            failures.map((c) => `${c.id}: ${c.status}${c.reason ? ` (${c.reason})` : ""}`).join("; ") ||
+            "run `ota init` again",
         };
   }
 

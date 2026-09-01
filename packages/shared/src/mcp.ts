@@ -219,7 +219,7 @@ const META: Record<OtaToolName, { title: string; description: string; readOnly: 
   generate_release_qrcode: {
     title: "Release QR code",
     description:
-      "QR code for a release preview link, returned as ASCII art plus the raw url (no PNG: the CLI has no image encoder among its dependencies).",
+      "QR code for a release preview link. Over HTTP the server returns a PNG image block plus the url; over stdio the CLI returns ASCII art plus the url. Scanning it installs that exact release, pinned.",
     readOnly: false,
   },
 };

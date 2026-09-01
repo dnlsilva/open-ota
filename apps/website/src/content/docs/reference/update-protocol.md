@@ -3,9 +3,9 @@ title: Update protocol
 description: The wire protocol between the SDK and the Device API — update-check, events and preview.
 ---
 
-Three routes under `/api/v1`, all authenticated by the project's public app key
-in `x-ota-app-key`, which identifies but never authorises. The shapes below come
-from `packages/shared/src/protocol.ts`, which the Kotlin and Swift SDKs mirror.
+Three routes under `/api/v1`, authenticated by the project's public app key in
+`x-ota-app-key`, which identifies but never authorises. Shapes come from
+`packages/shared/src/protocol.ts`, which the Kotlin and Swift SDKs mirror.
 
 ## GET /update-check
 
@@ -21,10 +21,9 @@ x-ota-app-key: pk_a1b2...
 &failed=0193a1...,0193a2...  # releases that failed on this device
 ```
 
-`platform` is `ios` or `android`. `channel` is 1–64 characters, `runtime`
-1–128, `device` 8–64, `native` up to 64. `current` and `floor` are uuids.
-`failed` is a comma-separated list, **capped at 10 entries** — the rest are
-dropped, so the query string stays bounded.
+`platform` is `ios` or `android`; `channel` is 1–64 characters, `runtime` 1–128,
+`device` 8–64, `native` up to 64; `current` and `floor` are uuids. `failed` is a
+comma-separated list **capped at 10 entries**, so the query string stays bounded.
 
 ### Target release
 
@@ -43,7 +42,7 @@ install, and gets `none`. From that list, walking newest to oldest:
 4. Otherwise the release must be `active` and the device must fall inside its
    rollout bucket.
 
-The first match wins. Then:
+The first match wins, and then:
 
 - `target == current` → `{"action":"none"}`
 - a target exists and differs → `{"action":"update", ...}`
@@ -52,11 +51,10 @@ The first match wins. Then:
 
 `update` covers a downgrade as well as an upgrade. If the release a device runs
 was disabled, the target is the previous one and the device converges *down* to
-it through the same code path. "Still runnable" is stricter than "still
-exists": a device that reported its own release as failed is not told to stay
-on it, or it would sit in a crash loop while the server answered `none`.
-
-Rollout membership is stateless and deterministic:
+it through the same code path. "Still runnable" is stricter than "still exists":
+a device that reported its own release as failed is not told to stay on it, or
+it would sit in a crash loop while the server answered `none`. Rollout
+membership is stateless and deterministic:
 
 ```
 bucket = int(sha256(deviceId + ":" + releaseId)[0..8), 16) % 10000
@@ -65,10 +63,8 @@ offered when bucket < round(rolloutPercent * 100)
 
 Salting with the release id keeps a device out of the first 10% of every
 release. Because the bucket never moves, raising a percentage only ever adds
-devices.
-
-The response is always sent with `cache-control: no-store` — bundles are
-immutable, but the decision is per device.
+devices. The response is always sent with `cache-control: no-store` — bundles
+are immutable, but the decision is per device.
 
 ### The response
 
@@ -92,21 +88,16 @@ immutable, but the decision is per device.
 }
 ```
 
-The other two are exactly:
-
-```json
-{ "action": "none" }
-{ "action": "rollBackToEmbedded" }
-```
+The other two responses carry nothing else: `{"action":"none"}` and
+`{"action":"rollBackToEmbedded"}`.
 
 **`url` sits outside the signed manifest on purpose.** It is transport. Move
 CDNs, change domains, put a cache in front, and every existing release stays
 valid, because integrity comes from `sha256` and authenticity from the detached
 signature. An attacker who swaps the URL can only deliver bytes that fail the
-hash. See the [security model](/reference/security/).
-
-Side effect: this request is the telemetry heartbeat. The device row is upserted
-here, at most once an hour unless something changed.
+hash — see the [security model](/reference/security/). This request is also the
+telemetry heartbeat: the device row is upserted here, at most once an hour
+unless something changed.
 
 ## POST /events
 
@@ -129,27 +120,21 @@ here, at most once an hour unless something changed.
 }
 ```
 
-`events` holds 1 to 50 entries. `type` is one of `download`, `install`,
-`ready`, `rollback`, `verifyFailed`. `reason` is `crash`, `verifyFailed`,
-`server` or `manual`. `stage` is up to 64 characters and `message` up to 512.
-Only `device` and `events` are required.
-
-The response is **202** with an empty body. The SDK queues events on disk and
-retries, so the server folds each batch into daily counters and drops any
-release id that does not belong to this project — an app key is public, so
-those ids are untrusted input. A rollback also increments the failed counter,
-which is what makes the funnel add up.
+`events` holds 1 to 50 entries. `type` is one of `download`, `install`, `ready`,
+`rollback`, `verifyFailed`. `reason` is `crash`, `verifyFailed`, `server` or
+`manual`. `stage` is up to 64 characters, `message` up to 512. Only `device` and
+`events` are required. The response is **202** with an empty body: the server
+folds each batch into daily counters and drops any release id that does not
+belong to this project — an app key is public, so those ids are untrusted
+input. A rollback increments the failed counter too, which makes the funnel add
+up.
 
 ## GET /preview/manifest
 
-```
-GET /api/v1/preview/manifest?d=<base64url payload>&s=<base64url signature>
-x-ota-app-key: pk_a1b2...
-```
-
-The device already verified the token locally; the server verifies it again,
-with **zero** clock skew tolerance, so a short expiry doubles as revocation. The
-release must belong to the token's project and must have a confirmed bundle.
-
-The response is the same shape as an `update`, with `mandatory` set to `false`
-and `cache-control: no-store`. The SDK applies it pinned until `exitPreview()`.
+`GET /api/v1/preview/manifest?d=<base64url payload>&s=<base64url signature>`,
+with the app key header. The device already verified the token locally; the
+server verifies it again, with **zero** clock skew tolerance, so a short expiry
+doubles as revocation. The release must belong to the token's project and must
+have a confirmed bundle. The response is the same shape as an `update`, with
+`mandatory` set to `false` and `cache-control: no-store`; the SDK applies it
+pinned until `exitPreview()`.

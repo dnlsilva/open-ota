@@ -187,7 +187,10 @@ object OpenOta {
       store.write(state)
     } catch (t: Throwable) {
       store.slotDir(slot).deleteRecursively()
-      emit(EVENT_UPDATE_STATE, mapOf("state" to "failed", "releaseId" to releaseId))
+      emit(
+        EVENT_UPDATE_STATE,
+        mapOf("state" to "failed", "releaseId" to releaseId, "code" to (t as? OtaError)?.code),
+      )
       throw if (t is OtaError) t else OtaError(OtaError.DOWNLOAD_FAILED, t.message ?: "install failed", t)
     } finally {
       zip.delete()
@@ -493,6 +496,23 @@ object OpenOta {
   }
 
   /* ------------------------------------------------------------------ wiring */
+
+  /**
+   * Bridgeless entry point — what the codemod wires into the host's
+   * `reactHost` getter. `DefaultReactHost` converts the old-architecture
+   * `ReactNativeHost` (whose `getJSBundleFile()` the codemod also overrides to
+   * call [getBundleFile]) into a `ReactHost`, so both architectures resolve the
+   * bundle through the same boot path. Calling [getBundleFile] first is what
+   * runs the crash watchdog before the host is even constructed.
+   */
+  @JvmStatic
+  fun createReactHost(
+    context: Context,
+    reactNativeHost: com.facebook.react.ReactNativeHost,
+  ): com.facebook.react.ReactHost {
+    getBundleFile(context)
+    return com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost(context, reactNativeHost)
+  }
 
   private fun requireContext(): Context =
     appContext ?: throw OtaError(OtaError.NOT_CONFIGURED, "OpenOta has no application context yet")

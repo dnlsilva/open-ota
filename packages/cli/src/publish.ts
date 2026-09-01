@@ -83,8 +83,10 @@ export async function uploadBundle(
   // own credentials in the query string and rejects a stray Authorization.
   if (prepared.uploadViaServer && params.token) headers.authorization = `Bearer ${params.token}`;
 
+  // PUT in both cases: signed storage urls are minted for PUT, and the
+  // server's local-driver passthrough registers PUT as well.
   const response = await fetchImpl(url, {
-    method: prepared.uploadViaServer ? "POST" : "PUT",
+    method: "PUT",
     headers,
     body: bytes as unknown as BodyInit,
   });

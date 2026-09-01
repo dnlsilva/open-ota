@@ -19,6 +19,7 @@ import { signup } from "../services/auth.js";
 import type { AppContext } from "../services/context.js";
 import { createEmailSender } from "../services/email.js";
 import { seedPlans } from "../services/orgs.js";
+import { runMaintenance } from "../services/telemetry.js";
 import { createStorage } from "../storage/index.js";
 
 const SHUTDOWN_GRACE_MS = 10_000;
@@ -45,6 +46,20 @@ await bootstrapAdmin(ctx);
 
 const app = createApp(ctx);
 if (config.DASHBOARD_DIR) serveDashboard(app, config.DASHBOARD_DIR);
+
+// The retention DATA-MODEL §5 promises: stale devices out after 180 days, raw
+// rollback rows after 90. Daily is plenty, and unref'd so it never holds the
+// process open during shutdown.
+const runRetention = () =>
+  runMaintenance(ctx)
+    .then(({ devices, rollbackEvents }) => {
+      if (devices || rollbackEvents) {
+        console.info(`[maintenance] pruned ${devices} devices, ${rollbackEvents} rollback events`);
+      }
+    })
+    .catch((error) => console.warn("[maintenance] prune failed", error));
+runRetention();
+setInterval(runRetention, 24 * 60 * 60 * 1000).unref();
 
 const server = serve({ fetch: app.fetch, port: config.PORT }, (info) => {
   console.info(`[boot] open-ota listening on :${info.port} (mode=${config.mode}, storage=${ctx.storage.name})`);

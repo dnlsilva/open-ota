@@ -21,7 +21,7 @@ export interface OtaStatus {
   /** Downloaded and staged, applies on the next launch. */
   pendingRelease: ReleaseRef | null;
   /** Releases that failed on this device; sent on every update-check. */
-  failedReleases: string[];
+  failedReleaseIds: string[];
   /** Pinned by a preview deep link — update-check stays suspended. */
   isPreview: boolean;
 }
@@ -35,7 +35,8 @@ export type SyncResult =
   | { status: "error"; error: Error };
 
 export interface DownloadProgress {
-  releaseId: string;
+  /** Not part of the native payload; present when the JS layer knows it. */
+  releaseId?: string;
   bytesWritten: number;
   /** 0 while the CDN sends no content-length. */
   totalBytes: number;
@@ -43,9 +44,12 @@ export interface DownloadProgress {
   fraction: number;
 }
 
+/**
+ * Translated in native.ts from the raw bridge payloads
+ * (downloading/pending/ready/failed/rolledBack) — see translateUpdateState.
+ */
 export type UpdateState =
   | { state: "downloading"; releaseId: string }
-  | { state: "downloaded"; releaseId: string }
   | { state: "installed"; releaseId: string }
   | { state: "ready"; releaseId: string }
   | { state: "rollback"; releaseId: string; reason: RollbackReason; fromReleaseId?: string }

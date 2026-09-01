@@ -77,12 +77,11 @@ the window, 30 days by default.
 | `rollback_events` | 90 days |
 | bundles in storage | immutable; collecting old disabled releases is future work |
 
-:::caution
-`pruneDevices` is implemented and takes the 180-day cutoff as its default, but
-nothing schedules it yet, and the 90-day expiry on `rollback_events` is a
-documented policy with no job behind it. Both are a cron entry away; until you
-add one, neither table is trimmed.
-:::
+The Node entry runs both prunes daily (`runMaintenance`, logged when anything
+was removed). The edge entries have no scheduler of their own, so a deployment
+that is *only* a Supabase Function or a Worker needs an external cron hitting
+any always-on instance — the data lives in one Postgres, so one runner covers
+the fleet.
 
 ## When to change any of this
 
