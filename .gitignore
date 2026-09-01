@@ -29,3 +29,6 @@ apps/dashboard/dist/
 
 # drizzle
 apps/server/drizzle/meta/_journal.json.bak
+
+# astro generated
+apps/website/.astro/

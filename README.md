@@ -12,7 +12,7 @@ Ship JavaScript and asset changes without an App Store or Play Store review — 
 ![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android-lightgrey)
 ![React Native](https://img.shields.io/badge/React%20Native-0.73%2B%20·%20old%20%2B%20new%20arch-61dafb)
 
-[Quick start](#quick-start) · [Architecture](#architecture) · [Deployment](#run-it-where-you-want) · [MCP](#drive-it-from-an-agent) · [Docs](docs/) · [Issues](https://github.com/dnlsilva/open-ota/issues)
+[open-ota.dev](https://open-ota.dev) · [Quick start](#quick-start) · [Architecture](#architecture) · [MCP](#drive-it-from-an-agent) · [Docs](https://open-ota.dev/getting-started/introduction/) · [Issues](https://github.com/dnlsilva/open-ota/issues)
 
 </div>
 

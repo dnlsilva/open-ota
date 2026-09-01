@@ -1,0 +1,375 @@
+---
+// Landing page. Deliberately single-theme: it commits to the same near-black
+// navy the dashboard ships in, so the product screenshots sit in it natively.
+const GITHUB = "https://github.com/dnlsilva/open-ota";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open OTA — self-hosted OTA updates for React Native</title>
+    <meta
+      name="description"
+      content="Publish JavaScript to React Native and Expo apps without a store review. Signed releases, gradual rollout, one-strike rollback and adoption metrics — on your own infrastructure."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:title" content="Open OTA" />
+    <meta property="og:description" content="Self-hosted OTA updates for React Native and Expo." />
+    <meta property="og:image" content="https://open-ota.dev/dashboard-overview.png" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="/">
+        <span class="brand-mark">OTA</span>
+        <span class="brand-name">Open OTA</span>
+      </a>
+      <nav>
+        <a href="/getting-started/introduction/">Docs</a>
+        <a href="/guides/publishing/">Guides</a>
+        <a href="/mcp/connect/">MCP</a>
+        <a href={GITHUB} class="gh">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Self-hosted · MIT · React Native &amp; Expo</p>
+          <h1>Ship JavaScript today.<br />Know what happened by tonight.</h1>
+          <p class="sub">
+            Open OTA publishes updates to installed apps without a store review — and then answers the
+            questions other tools leave open: who got it, who is running it, who rolled back.
+            Every release signed. Every rollout a number. Yours to run.
+          </p>
+          <div class="cta">
+            <a class="btn primary" href="/getting-started/quick-start/">Quick start</a>
+            <a class="btn" href={GITHUB}>Source on GitHub</a>
+          </div>
+          <code class="install">npx @open-ota/cli init</code>
+        </div>
+
+        <figure class="term" aria-label="Terminal showing a publish and its adoption numbers">
+          <figcaption class="term-bar"><i></i><i></i><i></i><span>~/app</span></figcaption>
+          <pre><span class="p">$</span> ota publish --channel production --rollout 10
+
+<span class="d">✓</span> expo export (android) · 4.8 MB · b94d27b9…
+<span class="d">✓</span> uploaded straight to storage, signed by the server
+
+<span class="k">LABEL  PLATFORM  CHANNEL     ROLLOUT  SHA256</span>
+v42    android   production  10%      b94d27b9934d
+
+<span class="p">$</span> ota metrics --channel production
+
+<span class="k">RELEASE  DEVICES  SHARE   READY   ROLLBACK</span>
+v42      8,250    82.5%   99.6%   <span class="ok">0.4%</span>
+v41      1,200    12.0%   99.8%   <span class="ok">0.2%</span>
+v40        550     5.5%   99.7%   <span class="ok">0.3%</span></pre>
+        </figure>
+      </section>
+
+      <section class="props">
+        <div class="prop">
+          <h3>Signed, end to end</h3>
+          <p>
+            A key pair per project. The device verifies the manifest signature and the bundle digest
+            before a byte runs — a compromised CDN can only serve bytes that fail the hash.
+          </p>
+        </div>
+        <div class="prop">
+          <h3>Rollback on one strike</h3>
+          <p>
+            A watchdog flag hits the disk before React Native gets the bundle. Crash before the app
+            confirms a healthy start, and the next launch reverts — and never re-offers that release
+            to that device.
+          </p>
+        </div>
+        <div class="prop">
+          <h3>Rollout you can reason about</h3>
+          <p>
+            <code>sha256(device:release) % 10000</code>. Deterministic, stateless, salted per release.
+            Raising a percentage only ever adds devices.
+          </p>
+        </div>
+        <div class="prop">
+          <h3>Adoption at flat cost</h3>
+          <p>
+            The update check is the heartbeat. One row per device, daily counters per release —
+            O(devices), never O(events). A million installs is the same shape, ten times over.
+          </p>
+        </div>
+        <div class="prop">
+          <h3>Never lands on the wrong binary</h3>
+          <p>
+            Releases pin to a native fingerprint and a per-build floor. Change a native dependency
+            and old bundles stop being offered — structurally, not by convention.
+          </p>
+        </div>
+        <div class="prop">
+          <h3>A QR away from any release</h3>
+          <p>
+            A signed, expiring deep link installs one exact release on one phone, pinned, without
+            touching the global rollout. Knowing the release id is not enough.
+          </p>
+        </div>
+      </section>
+
+      <section class="shot">
+        <h2>The half other update tools skip</h2>
+        <p class="section-sub">
+          Distribution by OTA release and by native version, funnel and rollback rate per release,
+          adoption over time. Live from your own Postgres.
+        </p>
+        <img
+          src="/dashboard-overview.png"
+          alt="Open OTA dashboard: active devices, current release per channel, adoption chart and version distribution table"
+          loading="lazy"
+          width="1440"
+          height="1080"
+        />
+      </section>
+
+      <section class="arch">
+        <h2>One codebase, wherever you run it</h2>
+        <figure class="term wide">
+          <figcaption class="term-bar"><i></i><i></i><i></i><span>architecture</span></figcaption>
+          <pre>
+             ┌──────────────────────────────┐
+   devices   │            app               │   admin
+─────────────│   @open-ota/react-native     │──────────────────────────
+             └──────┬───────────────┬───────┘
+                    │ check+events  │ download        ota CLI · ota mcp · dashboard
+                    ▼               ▼                          │
+             ┌────────────┐   ┌───────────┐                    ▼
+             │ Device API │   │    CDN    │             ┌────────────┐
+             │            │   └─────┬─────┘             │ Admin API  │
+             └─────┬──────┘         │                   └─────┬──────┘
+                   │                ▼                         │ signed upload
+                   ▼          ┌───────────────┐               ▼
+             ┌──────────┐     │ R2 · S3 · MinIO│◀─────────────┘
+             │ Postgres │     └───────────────┘
+             └──────────┘</pre>
+        </figure>
+        <div class="targets">
+          <div><b>Supabase</b><span>Edge Function · Postgres · Storage — provisioned by <code>ota init --provider supabase</code></span></div>
+          <div><b>Cloudflare</b><span>Workers · Hyperdrive · R2</span></div>
+          <div><b>Docker</b><span>Node · Postgres · MinIO — <code>docker compose up</code></span></div>
+        </div>
+        <p class="arch-note">
+          Bundles never pass through the API: the CLI hashes locally and writes straight to the
+          bucket — which is what lets the same server run inside an edge function.
+        </p>
+      </section>
+
+      <section class="mcp">
+        <div class="mcp-copy">
+          <h2>Operated by people. Or by agents.</h2>
+          <p>
+            The server is an MCP endpoint with OAuth built in. Point a client at it, sign in through
+            the browser, and fifteen tools cover publish, promote, rollout, rollback, metrics and QR
+            generation — the same contract over remote HTTP and local stdio, held together by a
+            conformance test.
+          </p>
+          <code class="install">claude mcp add --transport http ota https://your-server/mcp</code>
+        </div>
+        <ul class="prompts">
+          <li>“Publish the current build to staging.”</li>
+          <li>“What percentage is still on v41?”</li>
+          <li>“Is v52 rolling back more than the one before it?”</li>
+          <li>“Roll v53 out to 10%.”</li>
+        </ul>
+      </section>
+
+      <section class="status">
+        <h2>Where it stands</h2>
+        <p>
+          Pre-release. Server, SDK, CLI, dashboard and MCP are implemented, with 198 tests — including
+          an end-to-end suite on a real embedded Postgres. Nothing has run on a physical phone yet,
+          and the <a href="/reference/limitations/">limitations page</a> keeps that list honest. If
+          you want to kick the tires first, there is a
+          <a href="/getting-started/demo/">one-command demo server</a> with a week of seeded traffic.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <span>MIT licensed</span>
+      <nav>
+        <a href="/getting-started/introduction/">Docs</a>
+        <a href={GITHUB}>GitHub</a>
+        <a href="/reference/security/">Security model</a>
+      </nav>
+    </footer>
+
+    <style>
+      :root {
+        --bg: #0b0f1a;
+        --panel: #0f1524;
+        --panel-2: #131a2c;
+        --line: #222b42;
+        --ink: #e8ecf6;
+        --muted: #93a0bd;
+        --accent: #6172f3;
+        --accent-ink: #aab4ff;
+        --ok: #3ecf8e;
+        --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      html { color-scheme: dark; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      a { color: var(--accent-ink); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; text-wrap: balance; }
+      code { font-family: var(--mono); }
+
+      .top {
+        max-width: 1120px; margin: 0 auto; padding: 18px 24px;
+        display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      }
+      .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); }
+      .brand:hover { text-decoration: none; }
+      .brand-mark {
+        font: 600 11px/1 var(--mono); letter-spacing: 0.08em; color: #fff;
+        background: var(--accent); border-radius: 7px; padding: 7px 8px;
+      }
+      .brand-name { font-family: var(--display); font-weight: 600; font-size: 17px; }
+      .top nav { display: flex; gap: 22px; font-size: 14.5px; }
+      .top nav a { color: var(--muted); }
+      .top nav a.gh { color: var(--ink); }
+
+      main { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+      section { margin: 96px 0; }
+
+      .hero {
+        margin-top: 64px;
+        display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+        gap: 56px; align-items: center;
+      }
+      .eyebrow {
+        font: 500 12px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+        color: var(--accent-ink); margin: 0 0 18px;
+      }
+      h1 { font-size: clamp(34px, 4.6vw, 52px); line-height: 1.08; margin: 0 0 18px; font-weight: 700; }
+      .sub { color: var(--muted); font-size: 18px; max-width: 34em; margin: 0 0 26px; }
+      .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
+      .btn {
+        display: inline-block; padding: 11px 18px; border-radius: 9px;
+        border: 1px solid var(--line); color: var(--ink); font-weight: 550; font-size: 15px;
+      }
+      .btn:hover { text-decoration: none; border-color: var(--accent); }
+      .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      .btn.primary:hover { filter: brightness(1.08); }
+      .install {
+        display: inline-block; font-size: 13.5px; color: var(--muted);
+        background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+        padding: 9px 14px;
+      }
+
+      .term {
+        margin: 0; background: var(--panel); border: 1px solid var(--line);
+        border-radius: 12px; overflow: hidden;
+        box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.8);
+      }
+      .term-bar {
+        display: flex; align-items: center; gap: 7px; padding: 10px 14px;
+        background: var(--panel-2); border-bottom: 1px solid var(--line);
+      }
+      .term-bar i { width: 11px; height: 11px; border-radius: 50%; background: var(--line); }
+      .term-bar span { margin-left: 8px; font: 500 12px var(--mono); color: var(--muted); }
+      .term pre {
+        margin: 0; padding: 18px 20px; overflow-x: auto;
+        font: 13px/1.7 var(--mono); color: var(--ink);
+      }
+      .term .p { color: var(--accent-ink); }
+      .term .d { color: var(--ok); }
+      .term .k { color: var(--muted); }
+      .term .ok { color: var(--ok); }
+      .term.wide pre { line-height: 1.45; font-size: 12.5px; }
+
+      .props {
+        display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
+        background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+      }
+      .prop { background: var(--bg); padding: 26px 24px; }
+      .prop h3 { font-size: 17px; margin: 0 0 8px; }
+      .prop p { margin: 0; color: var(--muted); font-size: 14.5px; }
+      .prop code { font-size: 12.5px; color: var(--accent-ink); }
+
+      .shot { text-align: center; }
+      h2 { font-size: clamp(26px, 3.2vw, 34px); margin: 0 0 10px; }
+      .section-sub { color: var(--muted); max-width: 44em; margin: 0 auto 34px; }
+      .shot img {
+        width: 100%; height: auto; border: 1px solid var(--line); border-radius: 12px;
+        box-shadow: 0 30px 80px -40px rgba(0, 0, 0, 0.9);
+      }
+
+      .arch h2 { text-align: center; }
+      .arch .term { margin: 30px auto 26px; max-width: 860px; }
+      .targets {
+        display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;
+        max-width: 980px; margin: 0 auto;
+      }
+      .targets div {
+        border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; background: var(--panel);
+      }
+      .targets b { display: block; font-family: var(--display); margin-bottom: 4px; }
+      .targets span { color: var(--muted); font-size: 13.5px; }
+      .targets code { font-size: 12px; }
+      .arch-note { text-align: center; color: var(--muted); font-size: 14.5px; max-width: 46em; margin: 26px auto 0; }
+
+      .mcp {
+        display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+        gap: 48px; align-items: center;
+        border: 1px solid var(--line); border-radius: 14px; background: var(--panel);
+        padding: 40px 42px;
+      }
+      .mcp h2 { margin-top: 0; }
+      .mcp p { color: var(--muted); }
+      .mcp .install { background: var(--bg); }
+      .prompts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+      .prompts li {
+        border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
+        padding: 12px 16px; font-size: 14.5px; color: var(--ink);
+      }
+
+      .status {
+        border-top: 1px solid var(--line); padding-top: 48px; max-width: 760px; margin-inline: auto;
+      }
+      .status h2 { font-size: 22px; }
+      .status p { color: var(--muted); }
+
+      footer {
+        max-width: 1120px; margin: 0 auto; padding: 28px 24px 44px;
+        display: flex; justify-content: space-between; align-items: center; gap: 16px;
+        border-top: 1px solid var(--line); color: var(--muted); font-size: 14px;
+      }
+      footer nav { display: flex; gap: 20px; }
+
+      @media (max-width: 900px) {
+        section { margin: 72px 0; }
+        /* minmax(0, …): plain 1fr will not shrink below a child's min-content,
+           and the nowrap install command would widen the whole page. */
+        .hero { grid-template-columns: minmax(0, 1fr); gap: 36px; margin-top: 36px; }
+        .props, .targets { grid-template-columns: minmax(0, 1fr); }
+        .mcp { grid-template-columns: minmax(0, 1fr); padding: 28px 22px; }
+        .install { display: block; }
+        /* The nav is the one row that cannot shrink below its content, so let
+           it wrap under the brand instead of widening the whole page. */
+        .top { flex-wrap: wrap; row-gap: 10px; }
+        .top nav { gap: 14px; font-size: 13.5px; flex-wrap: wrap; }
+        .install { max-width: 100%; overflow-x: auto; white-space: nowrap; }
+      }
+    </style>
+  </body>
+</html>
