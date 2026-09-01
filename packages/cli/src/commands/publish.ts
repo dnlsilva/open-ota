@@ -141,6 +141,18 @@ function resolvePlatforms(value: string): Platform[] {
   fail(`Unknown platform "${value}".`, "Use ios, android or all.");
 }
 
+/**
+ * The export directory is zipped exactly as Expo produced it — nested bundle
+ * under _expo/static/js, hashed files under assets/, and metadata.json naming
+ * both. The native side reads metadata.json to find the bundle.
+ *
+ * ponytail: not flattened, because metadata.json is the only thing that maps a
+ * hashed asset back to what the bundle asks for, and throwing that away to make
+ * the tree prettier would remove the information asset resolution needs. How
+ * assets actually resolve on device is the open question in this project — see
+ * "Known limitations" in the README. Do not flatten this without measuring on
+ * a real phone first.
+ */
 async function expoExport(projectRoot: string, platform: Platform, cleanup: string[]): Promise<string> {
   const outputDir = await mkdtemp(join(tmpdir(), `ota-export-${platform}-`));
   cleanup.push(outputDir);

@@ -89,11 +89,27 @@ Design documents are in Portuguese; code, comments and this README are in Englis
 
 Early. The server, SDK, CLI, dashboard and MCP endpoint are implemented, with 177 tests across the workspace — including an end-to-end suite that runs the real migrations against a real Postgres engine in-process, so no Docker is needed to check the spine of the product.
 
-What has **not** happened yet is the part only hardware can settle: the native boot path and offline asset resolution on physical iOS and Android devices, across both the old and new React Native architectures. Nothing here has run on a phone. Treat it as pre-release until that matrix is green.
+What has **not** happened yet is the part only hardware can settle. Nothing here has run on a phone. Treat it as pre-release until the matrix below is green.
 
 ```bash
 pnpm install && pnpm typecheck && pnpm test
 ```
+
+### Known limitations
+
+1. **Asset resolution is unverified — this is the open question.** A release is the `expo export` output zipped as-is: the bundle nested under `_expo/static/js`, hashed files under `assets/`, and `metadata.json` naming both. The native side finds the bundle through `metadata.json`, but whether React Native then resolves `require`d images from an updated bundle depends on how asset lookup behaves for a file-loaded bundle, and that differs between Expo and bare projects and between platforms. JavaScript-only changes should be fine. Changing or adding an image may not be, until this is measured on a device. Do not flatten the archive to "fix" it without measuring first — `metadata.json` is the only thing mapping a hashed file back to what the bundle asks for.
+2. **The Android reload path swaps the bundle by reflection.** Neither `ReactInstanceManager` nor `ReactHost` re-reads the bundle path on reload, so a mandatory update would otherwise silently keep running the old code. If the swap fails, the SDK rolls the state back to pending and applies on the next launch instead of pretending it worked. Needs checking on each React Native version in the matrix.
+3. **The iOS cold-start deep link** relies on the host `AppDelegate` forwarding `application(_:open:options:)` to `RCTLinkingManager`. Templates that do not can call `handlePreviewLink(url)` from JavaScript instead.
+4. **Docker image and the edge entries are unbuilt.** The Node path was smoke-tested against a real Postgres; the Dockerfile, the Supabase Edge Function and the Cloudflare Worker are typecheck- and configuration-level only.
+
+### Validation matrix
+
+| | Old architecture | New architecture |
+|---|---|---|
+| Android (API 24, current) | not run | not run |
+| iOS (15.1, current) | not run | not run |
+| Expo prebuild | not run | not run |
+| Bare React Native | not run | not run |
 
 ## License
 

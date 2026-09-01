@@ -4,3 +4,9 @@ packages:
   - "examples/*"
 allowBuilds:
   esbuild: true
+
+# Transitive advisories in dev-only tooling (the Expo CLI's tar chain). Nothing
+# here reaches the server runtime or the published SDK, but the tree is easier
+# to read when it is clean.
+overrides:
+  tar: ">=7.5.19"
