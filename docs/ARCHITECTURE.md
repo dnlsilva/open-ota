@@ -231,6 +231,10 @@ As tools (schema Zod + handler sobre a service layer) vivem em `packages/shared`
    - Self-hosts têm a mesma rota de graça — MCP remoto não é exclusividade do hosted.
 2. **Local — `ota mcp` (stdio)**: mesmo conjunto de tools via CLI, com `OTA_API_URL`/`OTA_TOKEN` no env. Útil offline/CI e para quem não quer expor `/mcp`.
 
+**Uma superfície, não duas.** O contrato (nome, descrição, schema de argumentos) vive em `packages/shared/src/mcp.ts`; cada transporte só liga seus handlers. `apps/server/test/mcp-contract.test.ts` falha se divergirem — foi escrevendo esse teste que apareceu drift real entre as duas implementações (descrições diferentes e, pior, argumentos incompatíveis para a mesma tool).
+
+Uma release é referenciada como uma pessoa fala: `release: "v42"` funciona onde um uuid funciona, com `platform`/`channel` desambiguando quando o label se repete. `promote_release` usa `toChannel` para o destino — `channel` já significa "de qual canal é esse label".
+
 Tools (1:1 com a Admin API):
 
 | Tool | Nota |
@@ -240,11 +244,11 @@ Tools (1:1 com a Admin API):
 | `get_release_metrics` | funil download→install→ready→rollback + série diária |
 | `get_version_distribution` | devices por release OTA e por versão nativa |
 | `get_rollback_rate` | por release ou canal, com comparação |
-| `publish_release` | recebe caminho de artefato pronto (`--bundle-dir`); build fica na CLI |
+| `publish_release` | **nunca faz build**. No stdio recebe `bundleDir` (roda na máquina que tem os arquivos); no HTTP aceita só `releaseId` para confirmar um upload que a CLI já fez — um server remoto não tem acesso ao seu disco, e ler um caminho arbitrário lá seria primitiva de leitura de arquivo para qualquer token admin |
 | `promote_release` / `pause_release` / `resume_release` / `rollback_release` | |
 | `set_rollout_percentage` | |
 | `generate_release_deeplink` | URL assinada com TTL |
-| `generate_release_qrcode` | retorna PNG como image content — o agente mostra o QR na conversa |
+| `generate_release_qrcode` | retorna PNG como image content — o agente mostra o QR na conversa (a URL vai junto, p/ clientes sem imagem) |
 
 Os exemplos do requisito mapeiam direto: *"Publique a versão atual para staging"* → `publish_release`; *"Qual % ainda está na v41?"* → `get_version_distribution`; *"v52 tem mais rollbacks que a anterior?"* → `get_rollback_rate` ×2; *"Rollout da v53 para 10%"* → `set_rollout_percentage`.
 

@@ -11,13 +11,13 @@
     "ios": "expo run:ios"
   },
   "dependencies": {
-    "@open-ota/react-native": "workspace:*",
+    "@open-ota/react-native": "link:../../packages/react-native",
     "expo": "~52.0.0",
     "react": "18.3.1",
     "react-native": "0.76.9"
   },
   "devDependencies": {
-    "@open-ota/cli": "workspace:*",
+    "@open-ota/cli": "link:../../packages/cli",
     "@types/react": "^18.3.12",
     "typescript": "^5.7.2"
   }

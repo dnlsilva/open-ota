@@ -6,6 +6,14 @@ loop end to end: publish from the CLI, see the release land on a device.
 Expo Go will not work — the update mechanism lives in a native module, so this
 needs a dev build (`expo run:ios` / `expo run:android`).
 
+This app is **not** a workspace member: it pulls in the whole Expo toolchain,
+which ships nothing and would dominate the repository's lockfile and dependency
+reports. Install it on its own, from this directory:
+
+```bash
+pnpm install        # links @open-ota/react-native and the CLI from ../../packages
+```
+
 ## 1. Start the backend
 
 ```bash

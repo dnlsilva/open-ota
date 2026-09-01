@@ -182,4 +182,18 @@ Esta seção reflete o código, não o plano. Onde houver divergência com as se
 | Storage | S3-compatível, Supabase Storage e disco local. Adapter declara `readsAreCheap`; onde é barato, o server reconfere o digest no confirm |
 | Banco | Postgres, um dialeto. Migrations versionadas; a suíte de integração roda **essas mesmas migrations** num Postgres real embarcado (PGlite), sem Docker |
 
-Testes: 156 no total (39 shared · 43 SDK · 34 CLI · 40 server). O que **não** foi validado ainda é o que só hardware resolve — boot path nativo e resolução de assets offline em iOS/Android reais, nas duas arquiteturas do React Native.
+Testes: 191 no total (39 shared · 43 SDK · 36 CLI · 73 server). O que **não** foi validado ainda é o que só hardware resolve — boot path nativo e resolução de assets offline em iOS/Android reais, nas duas arquiteturas do React Native.
+
+### 5.1 Correções encontradas na integração
+
+Coisas que só apareceram quando as peças foram ligadas umas às outras — registradas porque cada uma teria virado bug em produção:
+
+| O quê | Consequência se tivesse passado |
+|---|---|
+| `publish_release` lia um caminho do disco do servidor | Em modo hosted, qualquer token admin conseguiria fazer o server abrir um arquivo local e devolver o conteúdo pelo bundle publicado. Removido: sobre HTTP a tool só confirma upload já feito pela CLI |
+| MCP stdio e MCP HTTP divergiam nos argumentos | Mesma tool, chamadas incompatíveis: um agente conectado por stdio passava `releaseId`, por HTTP `projectId` + `release`. Contrato unificado em `packages/shared/src/mcp.ts`, com teste de conformidade |
+| Device preso em release que ele próprio marcou como falha | O servidor respondia `none` e o app ficava em crash loop. Agora "current ainda válida" exclui releases na lista de falhas |
+| Unidades de taxa divergentes entre clientes | Dashboard e CLI assumiram razão 0–1; a API devolve 0–100. Uma taxa de rollback de 50% apareceria como 5000% |
+| `db.execute()` com formato de retorno por driver | A query de distribuição quebrava fora do postgres-js. Reescrita no query builder |
+| Re-verificação de digest chaveada pelo nome do driver | Adapters que podiam reler barato eram pulados. Virou capacidade declarada (`readsAreCheap`) |
+| `drizzle-orm` < 0.45.2 | Escape indevido de identificadores SQL num servidor com banco. Atualizado |
