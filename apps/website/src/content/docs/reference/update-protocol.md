@@ -3,11 +3,9 @@ title: Update protocol
 description: The wire protocol between the SDK and the Device API — update-check, events and preview.
 ---
 
-Three routes, all under `/api/v1`, all authenticated by the project's public app
-key in `x-ota-app-key`. The key identifies but never authorises: what protects
-the payload is the signature over the manifest, not a secret held on the device.
-The shapes below come from `packages/shared/src/protocol.ts`, which the Kotlin
-and Swift SDKs mirror.
+Three routes under `/api/v1`, all authenticated by the project's public app key
+in `x-ota-app-key`, which identifies but never authorises. The shapes below come
+from `packages/shared/src/protocol.ts`, which the Kotlin and Swift SDKs mirror.
 
 ## GET /update-check
 
@@ -32,11 +30,9 @@ dropped, so the query string stays bounded.
 
 The server answers one question: which release should this device be running.
 Candidates are the releases matching this project, channel, platform and an
-**exact** `runtime` match, with status `active` or `paused`, newest id first.
-An unknown channel is not an error for a device in the field — it simply has
-nothing to install, and gets `none`.
-
-From that list, walking newest to oldest:
+**exact** `runtime` match, with status `active` or `paused`, newest id first. An
+unknown channel is not an error for a device in the field — it has nothing to
+install, and gets `none`. From that list, walking newest to oldest:
 
 1. Skip anything in `failed`.
 2. Skip anything not newer than `floor`. A device never receives a bundle older
