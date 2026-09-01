@@ -8,6 +8,7 @@ packages:
 # report. Install it on its own when you want to run it — see its README.
 allowBuilds:
   esbuild: true
+  sharp: true
 
 # Pinned where a fixed version actually exists.
 overrides:

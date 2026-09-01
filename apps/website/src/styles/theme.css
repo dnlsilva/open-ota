@@ -1,0 +1,66 @@
+/* Open OTA docs theme — tuned to sit next to the dashboard screenshots:
+   near-black navy ground, indigo accent, mono for anything operational. */
+
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+:root {
+  --sl-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --sl-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ota-display: "Bricolage Grotesque", var(--sl-font);
+}
+
+/* Dark is the primary look. */
+:root[data-theme="dark"] {
+  --sl-color-accent-low: #1d2352;
+  --sl-color-accent: #6172f3;
+  --sl-color-accent-high: #c7d0ff;
+  --sl-color-white: #eef1f8;
+  --sl-color-gray-1: #dde2ee;
+  --sl-color-gray-2: #b6bfd4;
+  --sl-color-gray-3: #7e8aa6;
+  --sl-color-gray-4: #4a5570;
+  --sl-color-gray-5: #2a3247;
+  --sl-color-gray-6: #171d2e;
+  --sl-color-black: #0b0f1a;
+  --sl-color-bg-sidebar: #0d1220;
+  --sl-color-bg-nav: rgba(11, 15, 26, 0.88);
+}
+
+:root[data-theme="light"] {
+  --sl-color-accent-low: #dfe4ff;
+  --sl-color-accent: #4657d8;
+  --sl-color-accent-high: #232e7a;
+  --sl-color-white: #16192a;
+  --sl-color-gray-1: #232a3d;
+  --sl-color-gray-2: #3c455c;
+  --sl-color-gray-3: #5b6580;
+  --sl-color-gray-4: #8b94ac;
+  --sl-color-gray-5: #ccd2e0;
+  --sl-color-gray-6: #edf0f6;
+  --sl-color-gray-7: #f6f8fb;
+  --sl-color-black: #ffffff;
+}
+
+/* Headings carry the identity; body stays quiet. */
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.site-title {
+  font-family: var(--ota-display);
+  letter-spacing: -0.015em;
+}
+
+.sl-markdown-content code:not(pre code) {
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 5px;
+  padding: 0.08em 0.35em;
+}
+
+.sl-markdown-content table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Terminal-flavoured blockquotes read as asides, not decoration. */
+.sl-markdown-content blockquote {
+  border-inline-start-color: var(--sl-color-accent);
+}
