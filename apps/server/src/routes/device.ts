@@ -11,7 +11,7 @@ import {
   updateCheckQuerySchema,
   verifyPreviewToken,
 } from "@open-ota/shared";
-import { Hono } from "hono";
+import { Hono, type Context, type Next } from "hono";
 import type { AppEnv } from "../app.js";
 import { ApiError } from "../services/errors.js";
 import { findProjectByAppKey } from "../services/projects.js";
@@ -23,12 +23,19 @@ import { channels } from "../db/schema.js";
 export function deviceRoutes() {
   const app = new Hono<AppEnv>();
 
-  app.use("*", async (c, next) => {
+  // Listed path by path rather than "*": this router is mounted at /api/v1
+  // alongside the admin routes, and a wildcard here would demand an app key
+  // from every admin request too.
+  const requireAppKey = async (c: Context<AppEnv>, next: Next) => {
     const appKey = c.req.header(APP_KEY_HEADER);
     if (!appKey) throw ApiError.unauthorized(`Missing ${APP_KEY_HEADER} header`);
     c.set("project", await findProjectByAppKey(c.get("ctx"), appKey));
     await next();
-  });
+  };
+
+  app.use("/update-check", requireAppKey);
+  app.use("/events", requireAppKey);
+  app.use("/preview/manifest", requireAppKey);
 
   app.get("/update-check", async (c) => {
     const ctx = c.get("ctx");
