@@ -126,30 +126,37 @@ export function expoScheme(projectRoot: string): string | undefined {
 
 /* ----------------------------------------------------------- bare codemods */
 
-export interface CodemodOptions {
-  projectRoot: string;
-  projectId: string;
-  apiUrl: string;
-  channel: string;
+/** The values the transforms interpolate — same names the Expo plugin uses. */
+export interface CodemodConfig {
+  projectId?: string;
+  apiUrl?: string;
+  appKey?: string;
+  channel?: string;
   scheme?: string;
   publicKey?: string;
+  runtimeVersion?: string;
+  embeddedFloorId?: string;
 }
 
+export type CodemodStatus = "applied" | "missing" | "conflicting" | "notApplicable";
+
 export interface CodemodCheck {
-  name: string;
-  ok: boolean;
-  message?: string;
+  id: string;
+  status: CodemodStatus;
+  reason?: string;
+  file?: string;
 }
 
 export interface CodemodVerifyResult {
   ok: boolean;
-  checks?: CodemodCheck[];
+  checks: CodemodCheck[];
 }
 
+/** Mirrors packages/react-native/plugin/codemods/index.js — do not widen. */
 export interface Codemods {
-  applyAndroid(options: CodemodOptions): Promise<unknown> | unknown;
-  applyIos(options: CodemodOptions): Promise<unknown> | unknown;
-  verify?(options: CodemodOptions): Promise<CodemodVerifyResult> | CodemodVerifyResult;
+  applyAndroid(projectRoot: string, config?: CodemodConfig, options?: { write?: boolean }): CodemodCheck[];
+  applyIos(projectRoot: string, config?: CodemodConfig, options?: { write?: boolean }): CodemodCheck[];
+  verify(projectRoot: string): CodemodVerifyResult;
 }
 
 /**

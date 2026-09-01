@@ -2,21 +2,22 @@ import Foundation
 
 /**
  Values the config plugin (Expo) or the `ota init` codemod (bare RN) bakes into
- the binary. iOS carries them in Info.plist under an `OpenOta` dictionary:
+ the binary. iOS carries them as flat `OpenOta*` keys in Info.plist:
 
-   <key>OpenOta</key>
-   <dict>
-     <key>apiUrl</key>           <string>https://ota.example.com</string>
-     <key>appKey</key>           <string>pk_...</string>
-     <key>projectId</key>        <string>prj_...</string>
-     <key>channel</key>          <string>production</string>
-     <key>runtimeVersion</key>   <string>fp_...</string>   <!-- @expo/fingerprint -->
-     <key>publicKey</key>        <string>PEM or bare base64 SPKI</string>
-     <key>embeddedFloorId</key>  <string>UUIDv7 stamped at build time</string>
-     <key>deepLinkScheme</key>   <string>myapp</string>
-   </dict>
+   <key>OpenOtaApiUrl</key>          <string>https://ota.example.com</string>
+   <key>OpenOtaAppKey</key>          <string>pk_...</string>
+   <key>OpenOtaProjectId</key>       <string>prj_...</string>
+   <key>OpenOtaChannel</key>         <string>production</string>
+   <key>OpenOtaRuntimeVersion</key>  <string>fp_...</string>   <!-- @expo/fingerprint -->
+   <key>OpenOtaPublicKey</key>       <string>PEM or bare base64 SPKI</string>
+   <key>OpenOtaEmbeddedFloorId</key> <string>UUIDv7 stamped at build time</string>
+   <key>OpenOtaDeepLinkScheme</key>  <string>myapp</string>
 
- The Android side reads the same names as `dev.openota.<UPPER_SNAKE>` meta-data.
+ Flat on purpose: both writers — the Expo plugin's plist mod and the bare-RN
+ XML codemod — insert simple key/string pairs, and a nested dict would give the
+ XML codemod a structure to parse instead of a line to add. The Android side
+ reads the same names as `dev.openota.<UPPER_SNAKE>` meta-data.
+ Key names live in plugin/codemods/edits.js (IOS_PLIST) — keep in step.
  */
 struct OtaConfig {
   let apiUrl: String
@@ -46,25 +47,26 @@ struct OtaConfig {
   }
 
   static func load(from bundle: Bundle = .main) -> OtaConfig {
-    let values = bundle.object(forInfoDictionaryKey: "OpenOta") as? [String: Any] ?? [:]
     func value(_ key: String) -> String? {
-      guard let text = values[key] as? String, !text.isEmpty else { return nil }
+      guard let text = bundle.object(forInfoDictionaryKey: "OpenOta" + key) as? String,
+            !text.isEmpty
+      else { return nil }
       return text
     }
 
-    var apiUrl = value("apiUrl") ?? ""
+    var apiUrl = value("ApiUrl") ?? ""
     while apiUrl.hasSuffix("/") { apiUrl.removeLast() }
 
     return OtaConfig(
       apiUrl: apiUrl,
-      appKey: value("appKey") ?? "",
-      projectId: value("projectId") ?? "",
-      channel: value("channel") ?? "production",
-      runtimeVersion: value("runtimeVersion") ?? "",
-      publicKey: value("publicKey") ?? "",
-      embeddedFloorId: value("embeddedFloorId"),
+      appKey: value("AppKey") ?? "",
+      projectId: value("ProjectId") ?? "",
+      channel: value("Channel") ?? "production",
+      runtimeVersion: value("RuntimeVersion") ?? "",
+      publicKey: value("PublicKey") ?? "",
+      embeddedFloorId: value("EmbeddedFloorId"),
       nativeVersion: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
-      deepLinkScheme: value("deepLinkScheme")
+      deepLinkScheme: value("DeepLinkScheme")
     )
   }
 }

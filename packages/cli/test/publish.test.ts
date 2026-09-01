@@ -96,7 +96,7 @@ describe("publish", () => {
     expect(recorded.upload?.headers.authorization).toBeUndefined();
   });
 
-  it("POSTs through the API, authenticated, when the storage cannot sign urls", async () => {
+  it("PUTs through the API, authenticated, when the storage cannot sign urls", async () => {
     const { client, fetchImpl, recorded } = harness({
       uploadViaServer: true,
       uploadUrl: "/api/v1/releases/x/upload",
@@ -104,7 +104,7 @@ describe("publish", () => {
     });
     await publishArchive({ ...params, client, fetchImpl, archive: await archiveOf([{ path: "a", data: Buffer.from("a") }]) });
 
-    expect(recorded.upload?.method).toBe("POST");
+    expect(recorded.upload?.method).toBe("PUT");
     expect(recorded.upload?.url).toBe("https://api.example/api/v1/releases/x/upload");
     expect(recorded.upload?.headers.authorization).toBe("Bearer ota_token");
     expect(recorded.upload?.headers["content-type"]).toBe("application/zip");

@@ -75,6 +75,18 @@ async function events(known?: OtaStatus): Promise<EventQueue> {
     // count every native rollback twice.
     nativeStatesWired = true;
     native.addListener("updateState", (state) => queue?.enqueueNativeState(state));
+
+    // Crash rollbacks happen at boot, before any JS runs — native queues them
+    // in events.jsonl and this is the only drain. Without it, the single most
+    // important telemetry signal never reaches the server.
+    void (async () => {
+      try {
+        const pending = await native.takePendingEvents();
+        for (const row of pending) queue?.enqueueRaw(row);
+      } catch {
+        /* stub module in tests, or an SDK predating takePendingEvents */
+      }
+    })();
   }
   return queue;
 }
@@ -172,7 +184,7 @@ async function fetchUpdateCheck(
     current: status.currentRelease?.id,
     floor: native.embeddedFloorId,
     native: status.nativeVersion,
-    failed: status.failedReleases,
+    failed: status.failedReleaseIds,
   });
 
   const controller = new AbortController();

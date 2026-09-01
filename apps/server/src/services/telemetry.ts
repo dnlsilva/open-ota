@@ -210,3 +210,25 @@ export async function pruneDevices(ctx: AppContext, olderThanDays = 180): Promis
     .returning({ id: devices.id });
   return deleted.length;
 }
+
+/** Raw rollback rows earn their keep for a while, then become noise. */
+export async function pruneRollbackEvents(ctx: AppContext, olderThanDays = 90): Promise<number> {
+  const cutoff = new Date(ctx.now().getTime() - olderThanDays * 24 * 60 * 60 * 1000);
+  const deleted = await ctx.db
+    .delete(rollbackEvents)
+    .where(sql`${rollbackEvents.createdAt} < ${cutoff}`)
+    .returning({ id: rollbackEvents.id });
+  return deleted.length;
+}
+
+/**
+ * The retention DATA-MODEL §5 promises. The Node entry runs this daily; the
+ * edge targets have no scheduler of their own yet, so a cron hitting any
+ * always-on deployment covers the fleet — the data lives in one Postgres.
+ */
+export async function runMaintenance(ctx: AppContext): Promise<{ devices: number; rollbackEvents: number }> {
+  return {
+    devices: await pruneDevices(ctx),
+    rollbackEvents: await pruneRollbackEvents(ctx),
+  };
+}

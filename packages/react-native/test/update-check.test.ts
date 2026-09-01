@@ -15,7 +15,7 @@ function status(overrides: Partial<OtaStatus> = {}): OtaStatus {
     nativeVersion: "1.4.2",
     currentRelease: null,
     pendingRelease: null,
-    failedReleases: [],
+    failedReleaseIds: [],
     isPreview: false,
     ...overrides,
   };

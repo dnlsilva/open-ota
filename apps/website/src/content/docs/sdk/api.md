@@ -82,7 +82,7 @@ const status = await OpenOta.getStatus();
   nativeVersion: string;     // the app's own version string
   currentRelease: { id, label } | null;   // null = running the embedded bundle
   pendingRelease: { id, label } | null;   // downloaded, applies on the next launch
-  failedReleases: string[];  // sent on every update-check
+  failedReleaseIds: string[];  // sent on every update-check
   isPreview: boolean;        // pinned by a preview link
 }
 ```
@@ -129,8 +129,8 @@ subscription.remove();
 
 | Event | Payload |
 |---|---|
-| `downloadProgress` | `{ releaseId, bytesWritten, totalBytes, fraction }` — `totalBytes` and `fraction` are 0 when the CDN sends no content-length |
-| `updateState` | a tagged union: `downloading`, `downloaded`, `installed`, `ready`, `rollback`, `verifyFailed`, `error`, each with a `releaseId` |
+| `downloadProgress` | `{ bytesWritten, totalBytes, fraction }` — `totalBytes` and `fraction` are 0 when the CDN sends no content-length |
+| `updateState` | a tagged union: `downloading`, `installed`, `ready`, `rollback`, `verifyFailed`, `error` — translated in one place from the raw native payloads, so both platforms speak it identically |
 | `previewRequested` | `{ url?, d?, s? }` from a `<scheme>://ota/preview` link |
 
 `updateState` is where the native side reports outcomes JavaScript never sees — most importantly a rollback that happened during a boot the previous process did not survive.

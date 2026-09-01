@@ -54,7 +54,7 @@ function resolveOptions(config, props, projectRoot) {
     projectId: props.projectId ?? file.projectId,
     publicKey: props.publicKey ?? file.publicKey,
     channel: props.channel ?? file.channel ?? "production",
-    scheme: props.scheme ?? file.scheme ?? scheme,
+    scheme: props.scheme ?? file.deepLinkScheme ?? file.scheme ?? scheme,
     runtimeVersion: props.runtimeVersion ?? fingerprint.hash ?? fingerprint.fingerprint ?? file.runtimeVersion,
     // Fresh per build: this is the release floor, so it must move with the binary.
     embeddedFloorId: uuidv7(),

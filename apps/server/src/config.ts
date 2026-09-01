@@ -36,7 +36,9 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PORTAL_RETURN_URL: z.string().url().optional(),
 
-  EMAIL_DRIVER: z.enum(["console", "resend", "smtp"]).default("console"),
+  // console prints to the server log; resend sends. No smtp driver exists —
+  // implement it before adding it back here, or the value would silently no-op.
+  EMAIL_DRIVER: z.enum(["console", "resend"]).default("console"),
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("Open OTA <noreply@localhost>"),
 

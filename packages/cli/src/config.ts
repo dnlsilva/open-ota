@@ -23,6 +23,8 @@ export interface ProjectConfig {
   projectId: string;
   apiUrl: string;
   channel: string;
+  /** Public identifier the device sends on every check; the plugin bakes it in. */
+  appKey?: string;
   deepLinkScheme?: string;
   /** PEM of the project's RSA public key — embedded in the binary by the plugin. */
   publicKey?: string;

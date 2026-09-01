@@ -194,7 +194,9 @@ public class OpenOta: NSObject {
         completion(.success(["releaseId": releaseId, "slot": slot]))
       } catch {
         try? FileManager.default.removeItem(at: store.slotDirectory(slot))
-        emit(updateStateEvent, ["state": "failed", "releaseId": releaseId])
+        emit(updateStateEvent, [
+          "state": "failed", "releaseId": releaseId, "code": (error as? OtaError)?.code,
+        ])
         completion(.failure(error))
       }
     }
