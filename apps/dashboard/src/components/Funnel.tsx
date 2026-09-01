@@ -1,5 +1,5 @@
 import type { ReleaseFunnel } from "@open-ota/shared";
-import { formatNumber, formatPercent, formatRate } from "../lib/format";
+import { formatNumber, formatRate } from "../lib/format";
 import { EmptyState } from "./EmptyState";
 
 const STEPS = [
@@ -62,18 +62,6 @@ export function Funnel({ funnel }: { funnel: ReleaseFunnel }) {
           <div className="leak-value">{formatNumber(funnel.rollbacks)}</div>
           <div className="leak-label" title="Devices that reverted to the previous release or the embedded bundle">
             Rolled back
-          </div>
-        </div>
-        <div className="leak">
-          <div className="leak-value">{formatPercent(funnel.successRate)}</div>
-          <div className="leak-label" title="ready / installs">
-            Success rate
-          </div>
-        </div>
-        <div className="leak">
-          <div className="leak-value">{formatPercent(funnel.rollbackRate)}</div>
-          <div className="leak-label" title="rollbacks / installs">
-            Rollback rate
           </div>
         </div>
       </div>

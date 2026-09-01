@@ -1,7 +1,25 @@
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatDay, formatNumber } from "../lib/format";
 import { EmptyState } from "./EmptyState";
+
+/**
+ * Recharts animates a series in on mount. That is a nice touch for a chart
+ * someone is watching and an obstacle for someone who asked the system not to
+ * move things — and it also means a chart captured before the animation ends
+ * renders empty.
+ */
+function usePrefersReducedMotion(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+      query.addEventListener("change", onChange);
+      return () => query.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => true,
+  );
+}
 
 export interface DailyPoint {
   day: string;
@@ -71,6 +89,7 @@ export function ChartLegend({ keys }: { keys: Array<{ label: string; color: stri
  * red line climbs is exactly the shape an operator needs to catch.
  */
 export function AdoptionChart({ daily }: { daily: DailyPoint[] }) {
+  const animate = !usePrefersReducedMotion();
   const data = useMemo(() => {
     let ready = 0;
     let rollbacks = 0;
@@ -101,6 +120,7 @@ export function AdoptionChart({ daily }: { daily: DailyPoint[] }) {
             <YAxis allowDecimals={false} width={52} {...axisProps} />
             <Tooltip content={<ChartTooltip />} />
             <Area
+              isAnimationActive={animate}
               type="monotone"
               dataKey="ready"
               name="Ready (cumulative)"
@@ -109,6 +129,7 @@ export function AdoptionChart({ daily }: { daily: DailyPoint[] }) {
               fill="url(#ota-adoption)"
             />
             <Area
+              isAnimationActive={animate}
               type="monotone"
               dataKey="rollbacks"
               name="Rollbacks (cumulative)"
@@ -132,6 +153,7 @@ export function AdoptionChart({ daily }: { daily: DailyPoint[] }) {
 
 /** Per-day counters — for spotting the day a release started failing. */
 export function DailyChart({ daily }: { daily: DailyPoint[] }) {
+  const animate = !usePrefersReducedMotion();
   if (daily.length === 0) {
     return <EmptyState title="No daily counters yet">Nothing has been reported for this release.</EmptyState>;
   }
@@ -145,10 +167,10 @@ export function DailyChart({ daily }: { daily: DailyPoint[] }) {
             <XAxis dataKey="day" tickFormatter={formatDay} minTickGap={24} {...axisProps} />
             <YAxis allowDecimals={false} width={52} {...axisProps} />
             <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--chart-grid)", opacity: 0.4 }} />
-            <Bar dataKey="downloads" name="Downloads" fill="var(--chart-1)" />
-            <Bar dataKey="ready" name="Ready" fill="var(--chart-2)" />
-            <Bar dataKey="failed" name="Failed" fill="var(--chart-3)" />
-            <Bar dataKey="rollbacks" name="Rollbacks" fill="var(--chart-4)" />
+            <Bar dataKey="downloads" name="Downloads" fill="var(--chart-1)" isAnimationActive={animate} />
+            <Bar dataKey="ready" name="Ready" fill="var(--chart-2)" isAnimationActive={animate} />
+            <Bar dataKey="failed" name="Failed" fill="var(--chart-3)" isAnimationActive={animate} />
+            <Bar dataKey="rollbacks" name="Rollbacks" fill="var(--chart-4)" isAnimationActive={animate} />
           </BarChart>
         </ResponsiveContainer>
       </div>
