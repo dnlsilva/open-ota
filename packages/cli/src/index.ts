@@ -16,7 +16,8 @@ import { EXIT_USAGE, reportError } from "./output.js";
 const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
 
 export function buildProgram(): Command {
-  const program = new Command();
+  // Set before the subcommands exist: commander copies it into each of them.
+  const program = new Command().exitOverride();
 
   program
     .name("ota")
@@ -45,7 +46,7 @@ Exit codes: 0 ok, 1 failure, 2 usage error.`,
 }
 
 export async function run(argv: string[] = process.argv): Promise<void> {
-  const program = buildProgram().exitOverride();
+  const program = buildProgram();
   try {
     await program.parseAsync(argv);
   } catch (error) {

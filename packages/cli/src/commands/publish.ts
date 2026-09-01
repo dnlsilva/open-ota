@@ -10,7 +10,7 @@ import { createClient } from "../client.js";
 import { requireApi, requireProjectId, resolveConfig } from "../config.js";
 import { exec, gitCommit } from "../exec.js";
 import { requireRuntimeVersion } from "../fingerprint.js";
-import { fail, formatBytes, note, ok, parsePercent, printJson, printTable, step } from "../output.js";
+import { fail, formatBytes, note, ok, parsePercent, print, printJson, printTable, step } from "../output.js";
 import { bundleDirFor, publishArchive } from "../publish.js";
 import { zipDirectory, type BundleArchive } from "../zip.js";
 
@@ -127,9 +127,10 @@ export function registerPublish(program: Command): void {
         ]),
       );
 
-      if (flags.dryRun) note("\nDry run — nothing was uploaded.");
+      print("");
+      if (flags.dryRun) note("Dry run — nothing was uploaded.");
       else {
-        ok(`\nPublished to ${config.channel} · runtime ${runtimeVersion} · group ${groupId}`);
+        ok(`Published to ${config.channel} · runtime ${runtimeVersion} · group ${groupId}`);
         note(dim("Devices pick it up on their next update-check."));
       }
     });

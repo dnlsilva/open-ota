@@ -1,18 +1,21 @@
 /**
- * MCP tool definitions — one set, two transports: the `/mcp` route on this
- * server and the CLI's `ota mcp` stdio server. docs/ARCHITECTURE.md §3.5.
+ * Server-side implementations of the MCP tools.
  *
- * `name`, `description` and `input` are the shared contract; `run` is the
- * server-side implementation over the service layer. The CLI imports the first
- * three and supplies its own `run` over OtaClient.
+ * The contract — name, description and argument schema — lives in
+ * @open-ota/shared and is the same object the CLI's stdio server uses, so an
+ * agent sees an identical surface whichever transport it connects over. This
+ * file supplies only `run`. test/mcp-contract.test.ts keeps the two honest.
  */
 
 import {
   createPreviewToken,
   decryptSecret,
+  otaToolByName,
   PREVIEW_DEFAULT_TTL_MINUTES,
   previewDeepLink,
   sha256Hex,
+  type OtaToolInput,
+  type OtaToolName,
   type Platform,
 } from "@open-ota/shared";
 import { and, desc, eq } from "drizzle-orm";
@@ -56,18 +59,22 @@ const json = (value: unknown): ToolResult => ({
   content: [{ type: "text", text: JSON.stringify(value, null, 2) }],
 });
 
-function tool<S extends z.ZodRawShape>(
-  name: string,
-  description: string,
-  input: S,
-  run: (ctx: AppContext, actor: Actor, args: z.infer<z.ZodObject<S>>) => Promise<ToolResult>,
+/**
+ * Binds a handler to a tool declared in the shared contract. Description and
+ * schema are read from there rather than repeated here, so the two transports
+ * cannot describe the same tool differently.
+ */
+function tool<N extends OtaToolName>(
+  name: N,
+  run: (ctx: AppContext, actor: Actor, args: OtaToolInput<N>) => Promise<ToolResult>,
 ): McpTool {
+  const declared = otaToolByName[name];
   return {
     name,
-    description,
-    input,
-    // Parsed again here because the CLI transport may hand args straight through.
-    run: (ctx, actor, args) => run(ctx, actor, z.object(input).parse(args)),
+    description: declared.description,
+    input: declared.inputShape,
+    // Parsed again here because a transport may hand arguments straight through.
+    run: (ctx, actor, args) => run(ctx, actor, z.object(declared.inputShape).parse(args) as OtaToolInput<N>),
   };
 }
 
@@ -86,10 +93,26 @@ const releaseArg = {
   channel: z.string().optional().describe("Narrows the label lookup to one channel"),
 };
 
-type ReleaseArgs = z.infer<z.ZodObject<typeof releaseArg>>;
+type ReleaseArgs = OtaToolInput<"get_release">;
+
+/**
+ * The contract makes projectId optional because the CLI fills it from
+ * ota.config.json. There is no such file on the server, so a project-scoped
+ * token supplies it and anything else has to say which project it means.
+ */
+function requireProjectId(actor: Actor, given: string | undefined): string {
+  const projectId = given ?? actor.projectId;
+  if (!projectId) {
+    throw ApiError.badRequest(
+      "project_required",
+      "Pass projectId — list_projects will give you one, or use a token scoped to a single project",
+    );
+  }
+  return projectId;
+}
 
 async function resolveRelease(ctx: AppContext, actor: Actor, a: ReleaseArgs) {
-  const project = await authorizeProject(ctx, actor, a.projectId);
+  const project = await authorizeProject(ctx, actor, requireProjectId(actor, a.projectId));
   const release = await findRelease(ctx, project.id, a.release, {
     channel: a.channel,
     platform: a.platform,
@@ -137,8 +160,6 @@ async function previewUrl(
 export const MCP_TOOLS: McpTool[] = [
   tool(
     "list_projects",
-    "Lists the projects this token can see, with their app keys and deep link schemes.",
-    {},
     async (ctx, actor) => {
       const rows = await ctx.db
         .select()
@@ -150,22 +171,17 @@ export const MCP_TOOLS: McpTool[] = [
     },
   ),
 
-  tool("get_project", "Fetches one project by id.", projectArg, async (ctx, actor, a) => {
-    return json({ project: toProjectDto(await authorizeProject(ctx, actor, a.projectId)) });
-  }),
+  tool(
+    "get_project",
+    async (ctx, actor, a) => {
+    return json({ project: toProjectDto(await authorizeProject(ctx, actor, requireProjectId(actor, a.projectId))) });
+  },
+  ),
 
   tool(
     "list_releases",
-    "Lists releases newest first, optionally filtered by channel, platform or status.",
-    {
-      ...projectArg,
-      channel: z.string().optional(),
-      platform: platformArg.optional(),
-      status: z.enum(["pending", "active", "paused", "disabled"]).optional(),
-      limit: z.number().int().min(1).max(200).optional().describe("Default 20"),
-    },
     async (ctx, actor, a) => {
-      const project = await authorizeProject(ctx, actor, a.projectId);
+      const project = await authorizeProject(ctx, actor, requireProjectId(actor, a.projectId));
       const conditions = [eq(releases.projectId, project.id)];
       if (a.platform) conditions.push(eq(releases.platform, a.platform));
       if (a.status) conditions.push(eq(releases.status, a.status));
@@ -189,15 +205,16 @@ export const MCP_TOOLS: McpTool[] = [
     },
   ),
 
-  tool("get_release", "Fetches one release by id or label.", releaseArg, async (ctx, actor, a) => {
+  tool(
+    "get_release",
+    async (ctx, actor, a) => {
     const { release } = await resolveRelease(ctx, actor, a);
     return json({ release: await releaseDto(ctx, release) });
-  }),
+  },
+  ),
 
   tool(
     "get_release_metrics",
-    "Adoption funnel for one release — download, install, ready, failed, rollback — plus the daily series and its success and rollback rates.",
-    { ...releaseArg, days: z.number().int().min(1).max(90).optional().describe("Default 14") },
     async (ctx, actor, a) => {
       const { release } = await resolveRelease(ctx, actor, a);
       return json(await getReleaseMetrics(ctx, release.id, a.days ?? 14));
@@ -206,14 +223,8 @@ export const MCP_TOOLS: McpTool[] = [
 
   tool(
     "get_version_distribution",
-    "How the active device base is split across OTA releases and native app versions. Answers questions like \"what percentage is still on v41?\".",
-    {
-      ...projectArg,
-      platform: platformArg.optional(),
-      windowDays: z.number().int().min(1).max(365).optional().describe(`Active window, default ${DEFAULT_WINDOW_DAYS}`),
-    },
     async (ctx, actor, a) => {
-      const project = await authorizeProject(ctx, actor, a.projectId);
+      const project = await authorizeProject(ctx, actor, requireProjectId(actor, a.projectId));
       return json(
         await getDistribution(ctx, project.id, { platform: a.platform, windowDays: a.windowDays }),
       );
@@ -222,16 +233,8 @@ export const MCP_TOOLS: McpTool[] = [
 
   tool(
     "get_rollback_rate",
-    "Rollback rate for the most recent releases, newest first, so two releases can be compared directly.",
-    {
-      ...projectArg,
-      channel: z.string().optional(),
-      platform: platformArg.optional(),
-      limit: z.number().int().min(1).max(20).optional().describe("How many releases to compare, default 5"),
-      days: z.number().int().min(1).max(90).optional().describe("Default 14"),
-    },
     async (ctx, actor, a) => {
-      const project = await authorizeProject(ctx, actor, a.projectId);
+      const project = await authorizeProject(ctx, actor, requireProjectId(actor, a.projectId));
       const conditions = [eq(releases.projectId, project.id)];
       if (a.platform) conditions.push(eq(releases.platform, a.platform));
       if (a.channel) {
@@ -270,21 +273,9 @@ export const MCP_TOOLS: McpTool[] = [
 
   tool(
     "publish_release",
-    "Publishes a bundle that already exists. It never runs a build: pass releaseId to confirm and activate a release whose bundle is already uploaded, or bundlePath to upload a .zip that `ota publish` (or `expo export` plus zip) already produced. bundlePath is read from the filesystem of the machine running this MCP server, so over the remote /mcp transport only releaseId is usable.",
-    {
-      ...projectArg,
-      releaseId: z.string().uuid().optional().describe("A release created by prepare-upload whose bundle is uploaded"),
-      bundlePath: z.string().optional().describe("Absolute path to a prepared bundle .zip"),
-      platform: platformArg.optional().describe("Required with bundlePath"),
-      channel: z.string().optional().describe("Required with bundlePath"),
-      runtimeVersion: z.string().optional().describe("Required with bundlePath — the binary fingerprint"),
-      rolloutPercent: z.number().min(0).max(100).optional(),
-      mandatory: z.boolean().optional(),
-      message: z.string().max(500).optional(),
-    },
     async (ctx, actor, a) => {
       requireAdminScope(actor);
-      const project = await authorizeProject(ctx, actor, a.projectId);
+      const project = await authorizeProject(ctx, actor, requireProjectId(actor, a.projectId));
 
       if (a.releaseId) {
         const confirmed = await confirmRelease(ctx, a.releaseId);
@@ -294,58 +285,21 @@ export const MCP_TOOLS: McpTool[] = [
         return json({ release: await releaseDto(ctx, confirmed) });
       }
 
-      if (!a.bundlePath || !a.platform || !a.channel || !a.runtimeVersion) {
-        throw ApiError.badRequest(
-          "missing_bundle",
-          "Pass releaseId, or bundlePath with platform, channel and runtimeVersion",
-        );
-      }
-
-      // node:fs only on this branch: the module has to stay importable on
-      // Workers and Deno, where a local bundle path cannot exist anyway.
-      const { readFile } = await import("node:fs/promises");
-      const bytes = new Uint8Array(await readFile(a.bundlePath));
-      await assertCanPublish(ctx, project.orgId, bytes.byteLength);
-
-      const prepared = await prepareUpload(ctx, {
-        projectId: project.id,
-        createdBy: actor.userId,
-        platform: a.platform,
-        channel: a.channel,
-        runtimeVersion: a.runtimeVersion,
-        sha256: await sha256Hex(bytes),
-        size: bytes.byteLength,
-        rolloutPercent: a.rolloutPercent,
-        mandatory: a.mandatory,
-        message: a.message,
-      });
-
-      if (ctx.storage.put) {
-        await ctx.storage.put(prepared.storageKey, bytes, "application/zip");
-      } else {
-        const res = await fetch(prepared.uploadUrl, {
-          method: "PUT",
-          headers: prepared.uploadHeaders,
-          body: bytes,
-        });
-        if (!res.ok) {
-          throw ApiError.badRequest("upload_failed", `Storage rejected the bundle (HTTP ${res.status})`);
-        }
-      }
-
-      const confirmed = await confirmRelease(ctx, prepared.releaseId);
-      return json({ release: await releaseDto(ctx, confirmed) });
+      // Deliberately no filesystem branch. Reading a caller-supplied path here
+      // would let any admin token make the server disclose its own disk, and a
+      // remote agent has no files on this machine anyway. Building and
+      // uploading is the CLI's job; this tool only confirms the result.
+      throw ApiError.badRequest(
+        "release_id_required",
+        a.bundleDir
+          ? "bundleDir only works over stdio, where the tool runs on the machine holding the files. Run `ota publish` and pass the releaseId it prints."
+          : "Pass releaseId — run `ota publish` to build and upload, then confirm it here.",
+      );
     },
   ),
 
   tool(
     "promote_release",
-    "Copies a release into another channel as a new release with the same bundle. The source channel keeps its history.",
-    {
-      ...releaseArg,
-      toChannel: z.string().min(1).max(64).describe("Destination channel, e.g. production"),
-      rolloutPercent: z.number().min(0).max(100).optional().describe("Rollout in the destination, default 100"),
-    },
     async (ctx, actor, a) => {
       requireAdminScope(actor);
       const { release } = await resolveRelease(ctx, actor, a);
@@ -356,8 +310,6 @@ export const MCP_TOOLS: McpTool[] = [
 
   tool(
     "pause_release",
-    "Stops offering a release to new devices. Devices already on it keep it — only rollback_release pulls them off.",
-    releaseArg,
     async (ctx, actor, a) => {
       requireAdminScope(actor);
       const { release } = await resolveRelease(ctx, actor, a);
@@ -365,16 +317,17 @@ export const MCP_TOOLS: McpTool[] = [
     },
   ),
 
-  tool("resume_release", "Offers a paused release to new devices again.", releaseArg, async (ctx, actor, a) => {
+  tool(
+    "resume_release",
+    async (ctx, actor, a) => {
     requireAdminScope(actor);
     const { release } = await resolveRelease(ctx, actor, a);
     return json({ release: await releaseDto(ctx, await updateRelease(ctx, release.id, { status: "active" })) });
-  }),
+  },
+  ),
 
   tool(
     "rollback_release",
-    "Disables a release and reports where its devices land — the previous active release, or the bundle embedded in the binary.",
-    releaseArg,
     async (ctx, actor, a) => {
       requireAdminScope(actor);
       const { release } = await resolveRelease(ctx, actor, a);
@@ -388,23 +341,16 @@ export const MCP_TOOLS: McpTool[] = [
 
   tool(
     "set_rollout_percentage",
-    "Sets what share of devices are offered a release. Raising it only adds devices; lowering it never removes devices that already installed.",
-    { ...releaseArg, percent: z.number().min(0).max(100).describe("0–100") },
     async (ctx, actor, a) => {
       requireAdminScope(actor);
       const { release } = await resolveRelease(ctx, actor, a);
-      const updated = await updateRelease(ctx, release.id, { rolloutPercent: a.percent });
+      const updated = await updateRelease(ctx, release.id, { rolloutPercent: a.rolloutPercent });
       return json({ release: await releaseDto(ctx, updated) });
     },
   ),
 
   tool(
     "generate_release_deeplink",
-    "Creates a short-lived signed deep link that installs one specific release on a device, bypassing the rollout. Needs a deep link scheme on the project.",
-    {
-      ...releaseArg,
-      ttlMinutes: z.number().int().min(1).max(1440).optional().describe(`Default ${PREVIEW_DEFAULT_TTL_MINUTES}`),
-    },
     async (ctx, actor, a) => {
       requireAdminScope(actor);
       const { project, release } = await resolveRelease(ctx, actor, a);
@@ -414,11 +360,6 @@ export const MCP_TOOLS: McpTool[] = [
 
   tool(
     "generate_release_qrcode",
-    "Returns a scannable QR code for a release's preview deep link, as an image plus the URL. Point a phone with the app installed at it to install that exact release, pinned, without touching the rollout.",
-    {
-      ...releaseArg,
-      ttlMinutes: z.number().int().min(1).max(1440).optional().describe(`Default ${PREVIEW_DEFAULT_TTL_MINUTES}`),
-    },
     async (ctx, actor, a) => {
       requireAdminScope(actor);
       const { project, release } = await resolveRelease(ctx, actor, a);

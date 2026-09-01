@@ -169,6 +169,23 @@ export class OtaClient {
     return this.request<{ release: Release }>("GET", `/releases/${releaseId}`);
   }
 
+  /**
+   * Resolve what a person typed — a uuid, or a label like "v42" — to a release.
+   * Labels repeat across platforms and channels, so those narrow the lookup and
+   * the server refuses an ambiguous match rather than guessing.
+   */
+  lookupRelease(
+    projectId: string,
+    ref: string,
+    query: { channel?: string; platform?: Platform } = {},
+  ) {
+    return this.request<{ release: Release }>(
+      "GET",
+      `/projects/${projectId}/releases/lookup/${encodeURIComponent(ref)}`,
+      { query },
+    );
+  }
+
   prepareUpload(projectId: string, input: PrepareUploadRequest) {
     return this.request<PrepareUploadResponse>("POST", `/projects/${projectId}/releases/prepare-upload`, {
       body: input,

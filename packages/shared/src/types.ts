@@ -74,14 +74,21 @@ export interface Release {
   createdAt: string;
 }
 
+/**
+ * Every rate and percentage the API returns is 0-100, never a 0-1 ratio —
+ * successRate, rollbackRate, percentOfBase, adoptionPercent, rolloutPercent
+ * alike. Clients format them without scaling. `null` means the denominator was
+ * zero, which is not the same as zero percent and should read as "—".
+ */
 export interface ReleaseFunnel {
   downloads: number;
   installs: number;
   ready: number;
   failed: number;
   rollbacks: number;
-  /** ready / installs — the number that says whether a release is healthy. */
+  /** 100 * ready / installs — the number that says whether a release is healthy. */
   successRate: number | null;
+  /** 100 * rollbacks / installs. */
   rollbackRate: number | null;
 }
 

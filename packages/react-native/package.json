@@ -7,7 +7,9 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./plugin": "./plugin/index.js"
+    "./plugin": "./plugin/index.js",
+    "./plugin/codemods": "./plugin/codemods/index.js",
+    "./package.json": "./package.json"
   },
   "files": ["src", "plugin", "android", "ios", "expo-module.config.json", "README.md"],
   "keywords": ["react-native", "expo", "ota", "codepush", "hot-update"],

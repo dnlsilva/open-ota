@@ -40,6 +40,20 @@ export function createHandlers(context: McpContext): Record<OtaToolName, ToolHan
     return id;
   };
 
+  /** "v42" and a uuid must both work, exactly as they do over HTTP. */
+  const resolveRelease = async (input: {
+    projectId?: string;
+    release: string;
+    channel?: string;
+    platform?: "ios" | "android";
+  }): Promise<string> => {
+    const { release } = await client.lookupRelease(project(input.projectId), input.release, {
+      channel: input.channel,
+      platform: input.platform,
+    });
+    return release.id;
+  };
+
   return {
     list_projects: async (args) => ({ json: await client.listProjects(parseToolInput("list_projects", args).orgId) }),
 
@@ -59,11 +73,13 @@ export function createHandlers(context: McpContext): Record<OtaToolName, ToolHan
       };
     },
 
-    get_release: async (args) => ({ json: await client.getRelease(parseToolInput("get_release", args).releaseId) }),
+    get_release: async (args) => ({
+      json: await client.getRelease(await resolveRelease(parseToolInput("get_release", args))),
+    }),
 
     get_release_metrics: async (args) => {
       const input = parseToolInput("get_release_metrics", args);
-      return { json: await client.getReleaseMetrics(input.releaseId, input.days) };
+      return { json: await client.getReleaseMetrics(await resolveRelease(input), input.days) };
     },
 
     get_version_distribution: async (args) => {
@@ -78,15 +94,21 @@ export function createHandlers(context: McpContext): Record<OtaToolName, ToolHan
 
     get_rollback_rate: async (args) => {
       const input = parseToolInput("get_rollback_rate", args);
-      if (input.releaseId) return { json: await rollbackComparison(client, project(input.projectId), input.releaseId) };
-
-      const overview = await client.getOverview(project(input.projectId));
-      const channels = overview.channels.filter((entry) => !input.channel || entry.channel === input.channel);
-      return { json: { channels } };
+      return {
+        json: await rollbackComparison(client, project(input.projectId), {
+          channel: input.channel,
+          platform: input.platform,
+          limit: input.limit,
+          days: input.days,
+        }),
+      };
     },
 
     publish_release: async (args) => {
       const input = parseToolInput("publish_release", args);
+      if (!input.bundleDir || !input.platform) {
+        throw new Error("Pass bundleDir and platform — point them at an `expo export` output.");
+      }
       const { release, archive } = await publishBundleDir({
         client,
         projectId: project(input.projectId),
@@ -106,80 +128,75 @@ export function createHandlers(context: McpContext): Record<OtaToolName, ToolHan
 
     promote_release: async (args) => {
       const input = parseToolInput("promote_release", args);
-      return { json: await client.promoteRelease(input.releaseId, input.channel, input.rolloutPercent) };
+      const releaseId = await resolveRelease(input);
+      return { json: await client.promoteRelease(releaseId, input.toChannel, input.rolloutPercent) };
     },
 
     pause_release: async (args) => ({
-      json: await client.updateRelease(parseToolInput("pause_release", args).releaseId, { status: "paused" }),
+      json: await client.updateRelease(await resolveRelease(parseToolInput("pause_release", args)), { status: "paused" }),
     }),
 
     resume_release: async (args) => ({
-      json: await client.updateRelease(parseToolInput("resume_release", args).releaseId, { status: "active" }),
+      json: await client.updateRelease(await resolveRelease(parseToolInput("resume_release", args)), { status: "active" }),
     }),
 
     rollback_release: async (args) => ({
-      json: await client.rollbackRelease(parseToolInput("rollback_release", args).releaseId),
+      json: await client.rollbackRelease(await resolveRelease(parseToolInput("rollback_release", args))),
     }),
 
     set_rollout_percentage: async (args) => {
       const input = parseToolInput("set_rollout_percentage", args);
       return {
-        json: await client.updateRelease(input.releaseId, { rolloutPercent: input.rolloutPercent }),
+        json: await client.updateRelease(await resolveRelease(input), {
+          rolloutPercent: input.rolloutPercent,
+        }),
       };
     },
 
     generate_release_deeplink: async (args) => {
       const input = parseToolInput("generate_release_deeplink", args);
-      return { json: await client.createPreviewLink(input.releaseId, input.ttlMinutes) };
+      return { json: await client.createPreviewLink(await resolveRelease(input), input.ttlMinutes) };
     },
 
     generate_release_qrcode: async (args) => {
       const input = parseToolInput("generate_release_qrcode", args);
-      const link = await client.createPreviewLink(input.releaseId, input.ttlMinutes);
+      const link = await client.createPreviewLink(await resolveRelease(input), input.ttlMinutes);
       return { json: link, text: `${await renderQr(link.url)}\n${link.url}` };
     },
   };
 }
 
+/**
+ * Recent releases newest first with their rollback rates — which is how
+ * "is v52 rolling back more than the one before it" gets answered.
+ */
 async function rollbackComparison(
   client: OtaClient,
   projectId: string,
-  releaseId: string,
+  opts: { channel?: string; platform?: "ios" | "android"; limit?: number; days?: number },
 ): Promise<unknown> {
-  const [{ release }, metrics] = await Promise.all([
-    client.getRelease(releaseId),
-    client.getReleaseMetrics(releaseId),
-  ]);
-
   const { releases } = await client.listReleases(projectId, {
-    channel: release.channel,
-    platform: release.platform,
+    channel: opts.channel,
+    platform: opts.platform,
     limit: 200,
   });
-  const previous = releases
-    .filter((candidate: Release) => candidate.label < release.label)
-    .sort((a: Release, b: Release) => b.label - a.label)[0];
-  const previousMetrics = previous ? await client.getReleaseMetrics(previous.id) : null;
 
-  return {
-    release: { id: release.id, label: release.label, platform: release.platform, channel: release.channel },
-    rollbackRate: metrics.rollbackRate,
-    rollbacks: metrics.rollbacks,
-    installs: metrics.installs,
-    previous: previousMetrics
-      ? {
-          id: previousMetrics.releaseId,
-          label: previousMetrics.label,
-          rollbackRate: previousMetrics.rollbackRate,
-          rollbacks: previousMetrics.rollbacks,
-          installs: previousMetrics.installs,
-        }
-      : null,
-    delta:
-      previousMetrics && metrics.rollbackRate !== null && previousMetrics.rollbackRate !== null
-        ? metrics.rollbackRate - previousMetrics.rollbackRate
-        : null,
-  };
+  const recent = releases.slice(0, opts.limit ?? 5);
+  const compared = [];
+  for (const release of recent) {
+    const metrics = await client.getReleaseMetrics(release.id, opts.days ?? 14);
+    compared.push({
+      releaseId: release.id,
+      label: release.label,
+      channel: release.channel,
+      platform: release.platform,
+      installs: metrics.installs,
+      rollbacks: metrics.rollbacks,
+      rollbackRate: metrics.rollbackRate,
+      successRate: metrics.successRate,
+    });
+  }
+  return { releases: compared };
 }
 
 export function createMcpServer(context: McpContext): McpServer {

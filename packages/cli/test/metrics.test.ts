@@ -13,8 +13,8 @@ const metrics = (over: Partial<ReleaseMetrics> = {}): ReleaseMetrics => ({
   ready: 1380,
   failed: 20,
   rollbacks: 8,
-  successRate: 0.9857,
-  rollbackRate: 0.0057,
+  successRate: 98.6,
+  rollbackRate: 0.6,
   daily: [],
   ...over,
 });
@@ -67,6 +67,6 @@ describe("metrics rows", () => {
     expect(formatBytes(1536)).toBe("1.5 KB");
     expect(formatBytes(5 * 1024 * 1024)).toBe("5.0 MB");
     expect(formatPercent(null)).toBe("—");
-    expect(formatPercent(1)).toBe("100.0%");
+    expect(formatPercent(100)).toBe("100.0%");
   });
 });

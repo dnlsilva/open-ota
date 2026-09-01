@@ -6,11 +6,7 @@ import { createClient } from "../client.js";
 import { requireProjectId, resolveConfig } from "../config.js";
 import { formatPercent, print, printJson, printTable, warn } from "../output.js";
 
-/**
- * `percentOfBase` arrives as a percentage (0-100) while `successRate` and
- * `rollbackRate` are ratios (0-1) — they are defined as ready/installs in
- * types.ts. Formatting differs accordingly.
- */
+/** Every rate here arrives as a percentage (0-100), including percentOfBase. */
 export function funnelRows(metrics: ReleaseMetrics[], platformOf: (id: string) => string): string[][] {
   return metrics.map((entry) => [
     `v${entry.label}`,

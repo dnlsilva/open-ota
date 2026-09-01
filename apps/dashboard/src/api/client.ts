@@ -6,24 +6,37 @@ export { OtaApiError };
 
 declare global {
   interface Window {
-    /** Injected by the host page: the server serving this SPA, or `ota console`. */
+    /** Injected by the page serving this SPA when it knows its own API origin. */
     __OTA_API_URL__?: string;
+    /**
+     * Injected by `ota console`, which already holds a token from `ota login`
+     * and points the SPA at whatever API that CLI is configured for.
+     */
+    __OTA_CONSOLE__?: { apiUrl?: string; token?: string };
   }
 }
 
 const TOKEN_KEY = "ota.token";
 
 export function resolveApiBaseUrl(): string {
-  const injected = typeof window !== "undefined" ? window.__OTA_API_URL__ : undefined;
+  const console_ = typeof window !== "undefined" ? window.__OTA_CONSOLE__ : undefined;
+  const injected = console_?.apiUrl ?? (typeof window !== "undefined" ? window.__OTA_API_URL__ : undefined);
   const base = injected || import.meta.env.VITE_API_URL || window.location.origin;
   return base.replace(/\/+$/, "");
 }
 
 export function readStoredToken(): string | undefined {
   try {
+    // Coming from `ota console` the user already authenticated in the terminal,
+    // so adopt that token rather than making them log in a second time.
+    const fromConsole = window.__OTA_CONSOLE__?.token;
+    if (fromConsole && !localStorage.getItem(TOKEN_KEY)) {
+      localStorage.setItem(TOKEN_KEY, fromConsole);
+      return fromConsole;
+    }
     return localStorage.getItem(TOKEN_KEY) ?? undefined;
   } catch {
-    return undefined; // private mode / storage disabled
+    return window.__OTA_CONSOLE__?.token; // private mode / storage disabled
   }
 }
 

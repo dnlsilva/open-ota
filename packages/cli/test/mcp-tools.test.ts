@@ -37,25 +37,40 @@ describe("mcp tool definitions", () => {
 
 describe("mcp tool validation", () => {
   it("accepts a valid rollout change", () => {
-    expect(parseToolInput("set_rollout_percentage", { releaseId: "rel_1", rolloutPercent: 25 })).toEqual({
-      releaseId: "rel_1",
+    expect(parseToolInput("set_rollout_percentage", { release: "v42", rolloutPercent: 25 })).toEqual({
+      release: "v42",
       rolloutPercent: 25,
     });
   });
 
   it("rejects a rollout outside 0-100", () => {
-    expect(() => parseToolInput("set_rollout_percentage", { releaseId: "rel_1", rolloutPercent: 101 })).toThrow(
+    expect(() => parseToolInput("set_rollout_percentage", { release: "v42", rolloutPercent: 101 })).toThrow(
       /rolloutPercent/,
     );
-    expect(toolSchema("set_rollout_percentage").safeParse({ releaseId: "r", rolloutPercent: 12.5 }).success).toBe(
+    expect(toolSchema("set_rollout_percentage").safeParse({ release: "r", rolloutPercent: 12.5 }).success).toBe(
       false,
     );
   });
 
   it("requires the arguments a tool cannot default", () => {
-    expect(() => parseToolInput("get_release", {})).toThrow(/releaseId/);
-    expect(() => parseToolInput("publish_release", { platform: "ios" })).toThrow(/bundleDir/);
-    expect(() => parseToolInput("promote_release", { releaseId: "r" })).toThrow(/channel/);
+    expect(() => parseToolInput("get_release", {})).toThrow(/release/);
+    expect(() => parseToolInput("promote_release", { release: "v42" })).toThrow(/toChannel/);
+  });
+
+  it("leaves bundleDir optional, because only the stdio transport can use one", () => {
+    // A remote server has no access to the caller's disk, so the shared schema
+    // cannot demand a path. The stdio handler is what insists on it.
+    expect(parseToolInput("publish_release", { platform: "ios" })).toEqual({ platform: "ios" });
+    expect(parseToolInput("publish_release", { releaseId: "0193a4c8-1111-7222-8333-444455556666" })).toEqual({
+      releaseId: "0193a4c8-1111-7222-8333-444455556666",
+    });
+  });
+
+  it("accepts a label anywhere a release is named", () => {
+    expect(parseToolInput("rollback_release", { release: "v53" })).toEqual({ release: "v53" });
+    expect(parseToolInput("pause_release", { release: "0193a4c8-1111-7222-8333-444455556666" })).toEqual({
+      release: "0193a4c8-1111-7222-8333-444455556666",
+    });
   });
 
   it("lets the project id default to the configured one", () => {

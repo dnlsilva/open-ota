@@ -105,8 +105,9 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(value >= 100 ? 0 : 1)} ${units[unit]}`;
 }
 
+/** Every rate the API returns is already 0-100 — see ReleaseFunnel in @open-ota/shared. */
 export function formatPercent(value: number | null | undefined, digits = 1): string {
-  return value === null || value === undefined ? "—" : `${(value * 100).toFixed(digits)}%`;
+  return value === null || value === undefined ? "—" : `${value.toFixed(digits)}%`;
 }
 
 /** Turns any thrown value into a printed message and the exit code to use. */

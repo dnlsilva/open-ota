@@ -6,6 +6,7 @@
 import { createServer } from "node:http";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, extname, join, normalize, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Command } from "commander";
 import { dim } from "kleur/colors";
 
@@ -89,7 +90,7 @@ function findDashboardDist(): string | null {
   if (fromEnv && existsSync(fromEnv)) return resolve(fromEnv);
 
   const candidates = [join(process.cwd(), "node_modules", "@open-ota", "dashboard", "dist")];
-  let dir = dirname(new URL(import.meta.url).pathname);
+  let dir = dirname(fileURLToPath(import.meta.url));
   for (let depth = 0; depth < 8; depth += 1) {
     candidates.push(join(dir, "apps", "dashboard", "dist"));
     candidates.push(join(dir, "node_modules", "@open-ota", "dashboard", "dist"));

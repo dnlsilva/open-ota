@@ -7,3 +7,4 @@ export * from "./protocol.js";
 export * from "./preview.js";
 export * from "./types.js";
 export * from "./client.js";
+export * from "./mcp.js";
