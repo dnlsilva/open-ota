@@ -1,12 +1,25 @@
 packages:
   - "packages/*"
   - "apps/*"
-  - "examples/*"
+
+# examples/ is deliberately NOT a workspace member. The demo app drags in the
+# whole Expo toolchain, which has nothing to do with what this repo ships but
+# would dominate the lockfile, CI install time and every dependency advisory
+# report. Install it on its own when you want to run it — see its README.
 allowBuilds:
   esbuild: true
 
-# Transitive advisories in dev-only tooling (the Expo CLI's tar chain). Nothing
-# here reaches the server runtime or the published SDK, but the tree is easier
-# to read when it is clean.
+# Pinned where a fixed version actually exists.
 overrides:
   tar: ">=7.5.19"
+  esbuild: ">=0.24.3"
+
+# Still reported by `pnpm audit`, and deliberately not overridden:
+#
+#   @xmldom/xmldom, image-size  — inside metro and @expo/config-plugins, which
+#     are peer dependencies the consuming app supplies, not something this repo
+#     ships. image-size has no published fix at all: the advisory names 2.0.3
+#     as patched and the latest release is 2.0.2, so forcing it only breaks the
+#     install. These clear when React Native and Expo bump their own trees.
+#
+# Nothing above reaches the server runtime or the published SDK at runtime.

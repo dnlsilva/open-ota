@@ -414,7 +414,7 @@ export const MCP_TOOLS: McpTool[] = [
 
   tool(
     "generate_release_qrcode",
-    "Returns the preview deep link to render as a QR code. This server has no QR renderer, so it returns the URL as text rather than an image — `ota preview` renders it in the terminal and the dashboard renders it in the browser.",
+    "Returns a scannable QR code for a release's preview deep link, as an image plus the URL. Point a phone with the app installed at it to install that exact release, pinned, without touching the rollout.",
     {
       ...releaseArg,
       ttlMinutes: z.number().int().min(1).max(1440).optional().describe(`Default ${PREVIEW_DEFAULT_TTL_MINUTES}`),
@@ -423,16 +423,25 @@ export const MCP_TOOLS: McpTool[] = [
       requireAdminScope(actor);
       const { project, release } = await resolveRelease(ctx, actor, a);
       const link = await previewUrl(ctx, project, release, a.ttlMinutes ?? PREVIEW_DEFAULT_TTL_MINUTES);
-      // ponytail: no QR here. The two packages that show QR codes already carry
-      // a renderer (dashboard: qrcode, CLI: qrcode-terminal) and apps/server
-      // carries none; hand-rolling an encoder that no scanner has checked is
-      // worse than handing back the URL. Add `qrcode` to apps/server and return
-      // an image content block if an agent ever needs to display it inline.
-      return {
-        content: [
-          { type: "text", text: `Render this as a QR code (expires ${link.expiresAt}):\n${link.url}` },
-        ],
-      };
+
+      // The URL rides along with the image: a client that cannot display an
+      // image block still gets something the user can act on.
+      const content: Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }> = [
+        { type: "text", text: `Preview link for v${release.label} (${release.platform}), expires ${link.expiresAt}:\n${link.url}` },
+      ];
+
+      try {
+        const { toBuffer } = await import("qrcode");
+        const png = await toBuffer(link.url, { type: "png", width: 512, margin: 2 });
+        content.push({ type: "image", data: png.toString("base64"), mimeType: "image/png" });
+      } catch (error) {
+        content.push({
+          type: "text",
+          text: `Could not render the QR image (${(error as Error).message}); scan or open the URL above instead.`,
+        });
+      }
+
+      return { content };
     },
   ),
 ];
