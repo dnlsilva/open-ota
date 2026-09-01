@@ -98,7 +98,7 @@ describe("oauth", () => {
 
     await harness.ctx.db.insert(oauthClients).values({
       id: CLIENT_ID,
-      clientName: "Example MCP Client",
+      clientName: "Claude Code",
       redirectUris: [REDIRECT, "cursor://anysphere/oauth"],
     });
   });
@@ -160,7 +160,7 @@ describe("oauth", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
     const html = await res.text();
-    expect(html).toContain("Example MCP Client");
+    expect(html).toContain("Claude Code");
     expect(html).toContain(`name="code_challenge" value="${challenge}"`);
   });
 

@@ -82,7 +82,7 @@ Este projeto não inventou o mecanismo de OTA do zero — ele fica em cima de pa
 | Modo hosted ✅ | **Mesmo codebase roda o SaaS do Daniel**: `OTA_MODE=hosted` liga multi-tenant (orgs, signup, billing); self-host roda com org única invisível | fork/produto separado | Um código, dois modos. Multi-tenant estrutural (orgs+membership+quotas) sai no v1. |
 | Billing ✅ | **Stripe completo no v1**: checkout, customer portal, webhooks, trial, upgrade/downgrade | estrutura + cobrança manual | Decisão de Daniel. Quotas por plano com enforcement; regra de produto: estourar quota **bloqueia publish novo, nunca corta update-check dos apps em produção** — o app do cliente final nunca quebra por billing. |
 | Signup hosted ✅ | **Aberto, self-serve, e-mail verificado** | convite/waitlist | Org criada no plano free/trial com quotas baixas; rate limit + quotas seguram abuso. E-mail via interface `sendEmail` (driver Resend no hosted, SMTP no self-host). |
-| MCP ✅ | **Tools definidas uma vez, dois transportes**: stdio local (`ota mcp`) e **remoto Streamable HTTP em `/mcp` com OAuth 2.1 + DCR** | só stdio | "Conectar e funcionar bala": apontar um cliente MCP para `/mcp` → browser → login → pronto, zero instalação. Fallback `--header Authorization: Bearer`. Self-hosts ganham a rota de graça. |
+| MCP ✅ | **Tools definidas uma vez, dois transportes**: stdio local (`ota mcp`) e **remoto Streamable HTTP em `/mcp` com OAuth 2.1 + DCR** | só stdio | "Conectar e funcionar bala": `claude mcp add --transport http` → browser → login → pronto, zero instalação. Fallback `--header Authorization: Bearer`. Self-hosts ganham a rota de graça. |
 | Monorepo | pnpm workspaces (+ turborepo se builds doerem) | nx | Simples. |
 
 ### Um serviço só (monolito modular)
@@ -221,9 +221,9 @@ Publish default publica iOS+Android como duas releases ligadas por um `group_id`
 As tools (schema Zod + handler sobre a service layer) vivem em `packages/shared` e são expostas por dois transportes:
 
 1. **Remoto — `/mcp` no próprio server (Streamable HTTP)** ✅, o caminho "conectar e funcionar bala" do hosted:
-   - O cliente MCP recebe `https://api.<dominio>/mcp` → browser abre → login/consent → conectado. Zero instalação local, mesmo fluxo em qualquer cliente que fale MCP.
+   - `claude mcp add --transport http ota https://api.<dominio>/mcp` → browser abre → login/consent → conectado. Zero instalação local. Mesmo fluxo em Cursor/Codex ou qualquer cliente que fale MCP.
    - Auth: **OAuth 2.1 com PKCE + Dynamic Client Registration** (o server é o próprio authorization server: `/.well-known/oauth-protected-resource`, `/oauth/authorize` — tela de login/consent da SPA —, `/oauth/token`, `/oauth/register`). Os access tokens são os mesmos `api_tokens` Bearer (um sistema de tokens só), com escopo `read`/`admin` e org do usuário.
-   - Fallback sem OAuth: o cliente envia o header `Authorization: Bearer ota_...` direto.
+   - Fallback sem OAuth: `claude mcp add --transport http ota <url> --header "Authorization: Bearer ota_..."`.
    - Self-hosts têm a mesma rota de graça — MCP remoto não é exclusividade do hosted.
 2. **Local — `ota mcp` (stdio)**: mesmo conjunto de tools via CLI, com `OTA_API_URL`/`OTA_TOKEN` no env. Útil offline/CI e para quem não quer expor `/mcp`.
 

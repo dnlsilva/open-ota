@@ -191,13 +191,11 @@ Per-target details: [apps/server/README.md](apps/server/README.md).
 
 ## Drive it from an agent
 
-Point any MCP client at the endpoint:
-
-```
-https://your-server/mcp
+```bash
+claude mcp add --transport http ota https://your-server/mcp
 ```
 
-Browser opens, you sign in, done — nothing to install, no token to paste. OAuth 2.1 with PKCE and dynamic client registration, so a client registers itself. Then ask for what you want:
+Browser opens, you sign in, done — nothing to install, no token to paste. Any MCP client connects the same way: OAuth 2.1 with PKCE and dynamic client registration, so the client registers itself. Then ask for what you want:
 
 > *"Publish the current build to staging."*
 > *"What percentage is still on v41?"*
