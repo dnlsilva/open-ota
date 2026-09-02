@@ -1,7 +1,7 @@
 {
   "name": "@open-ota/react-native",
   "version": "0.1.0",
-  "description": "Open OTA SDK for React Native and Expo — signed OTA updates with automatic rollback",
+  "description": "Open OTA SDK for React Native and Expo \u2014 signed OTA updates with automatic rollback",
   "license": "MIT",
   "main": "src/index.ts",
   "types": "src/index.ts",
@@ -11,8 +11,21 @@
     "./plugin/codemods": "./plugin/codemods/index.js",
     "./package.json": "./package.json"
   },
-  "files": ["src", "plugin", "android", "ios", "expo-module.config.json", "README.md"],
-  "keywords": ["react-native", "expo", "ota", "codepush", "hot-update"],
+  "files": [
+    "src",
+    "plugin",
+    "android",
+    "ios",
+    "expo-module.config.json",
+    "README.md"
+  ],
+  "keywords": [
+    "react-native",
+    "expo",
+    "ota",
+    "codepush",
+    "hot-update"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
@@ -20,24 +33,28 @@
   "peerDependencies": {
     "@expo/config-plugins": ">=8",
     "expo": "*",
-    "react": "*",
-    "react-native": "*"
+    "react": ">=18",
+    "react-native": ">=0.73"
   },
   "peerDependenciesMeta": {
-    "expo": { "optional": true },
-    "@expo/config-plugins": { "optional": true }
+    "expo": {
+      "optional": true
+    },
+    "@expo/config-plugins": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@open-ota/shared": "workspace:*"
   },
   "devDependencies": {
-    "@expo/config-plugins": "^9.0.12",
-    "@types/node": "^22.10.2",
-    "@types/react": "^18.3.12",
-    "expo-modules-core": "^2.1.1",
-    "react": "^18.3.1",
-    "react-native": "^0.76.5",
-    "typescript": "^5.7.2",
+    "@expo/config-plugins": "^57.0.9",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.18",
+    "expo-modules-core": "^57.0.15",
+    "react": "^19.2.8",
+    "react-native": "^0.87.1",
+    "typescript": "^7.0.2",
     "vitest": "^3.2.6"
   }
 }

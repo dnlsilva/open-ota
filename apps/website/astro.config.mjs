@@ -10,9 +10,9 @@ export default defineConfig({
       description:
         "Self-hosted over-the-air updates for React Native and Expo — signed releases, gradual rollout, automatic rollback and adoption metrics.",
       customCss: ["./src/styles/theme.css"],
-      social: {
-        github: "https://github.com/dnlsilva/open-ota",
-      },
+      social: [
+        { icon: "github", label: "GitHub", href: "https://github.com/dnlsilva/open-ota" },
+      ],
       editLink: {
         baseUrl: "https://github.com/dnlsilva/open-ota/edit/main/apps/website/",
       },

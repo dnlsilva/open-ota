@@ -12,9 +12,9 @@
   },
   "dependencies": {
     "@open-ota/react-native": "link:../../packages/react-native",
-    "expo": "~52.0.0",
-    "react": "18.3.1",
-    "react-native": "0.76.9"
+    "expo": "~57.0.0",
+    "react": "19.2.8",
+    "react-native": "0.87.1"
   },
   "devDependencies": {
     "@open-ota/cli": "link:../../packages/cli",

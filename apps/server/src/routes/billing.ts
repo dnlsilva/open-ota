@@ -188,11 +188,16 @@ async function applySubscription(
 
   const ended = sub.status === "canceled" || sub.status === "incomplete_expired";
 
+  // Stripe moved billing periods onto subscription items (one subscription can
+  // now carry items on different cycles). Ours has a single plan item, but take
+  // the max so a second item could never shorten the mirrored period.
+  const periodEnd = Math.max(0, ...sub.items.data.map((item) => item.current_period_end ?? 0));
+
   await mirror(ctx, orgId, {
     stripeCustomerId: idOf(sub.customer),
     stripeSubscriptionId: sub.id,
     status: sub.status,
-    currentPeriodEnd: new Date(sub.current_period_end * 1000),
+    currentPeriodEnd: periodEnd > 0 ? new Date(periodEnd * 1000) : null,
     cancelAtPeriodEnd: sub.cancel_at_period_end,
   });
 
