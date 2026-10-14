@@ -18,7 +18,7 @@
     "@aws-sdk/client-s3": "^3.1123.0",
     "@aws-sdk/s3-request-presigner": "^3.1123.0",
     "@hono/node-server": "^2.1.1",
-    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "@open-ota/shared": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.5",
